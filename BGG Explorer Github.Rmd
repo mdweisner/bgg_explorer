@@ -1,0 +1,130 @@
+---
+title: "BGG Explorer Github"
+author: "Michael Weisner"
+date: "November 2, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(psych)
+```
+## BGG Data
+```{r}
+games <- read_csv(unzip("~/bgg_explorer/bgg_db_1806.csv.zip"))
+```
+
+## Quick Cleaning
+I used this to quickly cut out some outliers, but they need closer examination!
+```{r}
+games_clean <- drop_na(games)
+outliers <- subset(games_clean, max_players >32 | avg_time > 240 | min_time > 240 | max_time > 240)
+games_clean <- subset(games_clean, max_players <=32 & avg_time <=240 & min_time <= 240 & max_time <= 480)
+
+#head(games_clean)
+summary(games_clean)
+```
+
+Look at Outliers if necessary
+```{r}
+#View(outliers)
+```
+
+## Cleaning
+
+### Mechanics
+https://boardgamegeek.com/browse/boardgamemechanic
+Create dummy variables for mechanics?
+Idea: do a for loop that goes through the mechanics vector and looks for the string matching that vector location across the Mechanics variable, and if so adding a 1 to a new mechanic for that column?
+
+Maybe:
+games$mechanic %>%
+if(str_detect("Acting") {
+mutate(Acting = 1)
+} else{
+Acting = 0
+}
+```{r}
+mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
+               "Area Control / Area Influence", "Area Enclosure", "Area Movement", "Area-Impulse",
+               "Auction/Bidding", "Betting/Wagering", "Campaign / Battle Card Driven", "Card Drafting",
+               "Chit-Pull System", "Commodity Speculation", "Co-operative Play", "Crayon Rail System",
+               "Deck / Pool Building", "Dice Rolling", "Grid Movement", "Hand Management", "Hex-and-Counter",
+               "Line Drawing", "Memory", "Modular Board", "Paper-and-Pencil", "Partnerships", "Pattern Building",
+               "Pattern Recognition", "Pick-up and Deliver", "Player Elimination", "Point to Point Movement",
+               "Press Your Luck", "Rock-Paper-Scissors", "Role Playing", "Roll / Spin and Move", "Route/Network Building",
+               "Secret Unit Deployment", "Set Collection", "Simulation", "Simultaneous Action Selection", "Singing",
+               "Stock Holding", "Storytelling", "Take That", "Tile Placement", "Time Track", "Trading", "Trick-taking",
+               "Variable Phase Order", "Variable Player Powers", "Voting", "Worker Placement")
+
+
+# Add columns for each mechanic type
+games[, mech_raw] <- 0
+
+# Update values of dummy mechanics if present in games$mechanic
+for(j in 1:length(mech_raw)){
+  for(i in 1:length(games$mechanic)){
+    games[i, as.character(mech_raw[j])] <- as.numeric(grepl(mech_raw[j], games$mechanic[i]))
+  }
+  cat("now at ", round(j * 1.96), "% ... ")
+}
+
+# head(games)
+```
+
+### Rename Mechanics
+```{r}
+# colnames(games)
+testnames <- games[1:5, ]
+colnames(testnames) <- tolower(colnames(testnames))
+colnames(testnames) <- gsub("co-op", "coop", colnames(testnames)) # odd one out with dash
+colnames(testnames) <- gsub("\\/", " ", colnames(testnames))
+colnames(testnames) <- gsub("-", " ", colnames(testnames))
+colnames(testnames) <- gsub(" and ", " ", colnames(testnames))
+colnames(testnames) <- gsub("  ", " ", colnames(testnames))
+colnames(testnames) <- gsub("  ", " ", colnames(testnames))
+colnames(testnames) <- gsub(" ", "_", colnames(testnames))
+
+```
+
+
+### Categories
+Do the same thing with categories
+https://boardgamegeek.com/browse/boardgamecategory
+Maybe figure out way to just comma separate them into a new data frame and then pull out unique values?
+```{r}
+cat_names <- as.data.frame(games$category)
+cat_names <- extract(games, category, c("Type1", "Type2", "Type3", "Type4", "Type5", "Type6", "Type7"), sep = "([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+)")
+head(cat_names)
+```
+
+### Times
+```{r}
+describe(games_clean$avg_time)
+```
+
+### Num Players
+
+
+## Quick LM
+```{r}
+lm1 <- lm(geek_rating ~ min_players + max_players + avg_time + age + weight + Acting + `Action / Movement Programming` + `Action Point Allowance System` + `Area Control / Area Influence` + `Area Enclosure` + `Area-Impulse` + `Auction/Bidding` + `Betting/Wagering` + `Campaign / Battle Card Driven` + `Card Drafting` + `Chit-Pull System` + `Commodity Speculation` + `Cooperative Play` + `Crayon Rail System` + `Deck / Pool Building` + `Dice Rolling` + `Grid Movement` + `Hand Management` + `Hex-and-Counter` + `Line Drawing` + Memory + `Modular Board` + `Paper-and-Pencil` + `Partnerships` + `Pattern Building` + `Pick-up and Deliver` + `Player Elimination` + `Point to Point Movement` + `Press Your Luck` + `Rock-Paper-Scissors` + `Roll / Spin and Move` + `Route/Network Building` + `Secret Unit Deployment` + `Set Collection` + `Simulation` + `Simultaneous Action Selection` + `Singing` + `Stock Holding` + `Storytelling` + `Take That` + `Tile Placement` + `Time Track` + Trading + `Trick-taking` + `Variable Phase Order` + `Variable Player Powers` + Voting + `Worker Placement`, data = games_clean)
+summary(lm1)
+```
+
+
+## Plotting
+```{r}
+gg <- ggplot(data = games_clean, aes(x = geek_rating, y = owned, col = avg_time))
+gg <- gg + geom_point()
+gg <- gg + geom_smooth()
+gg
+
+```
+
