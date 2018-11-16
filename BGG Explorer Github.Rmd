@@ -18,14 +18,16 @@ library(psych)
 ## BGG Data
 ```{r}
 games <- read_csv(unzip("~/bgg_explorer/bgg_db_1806.csv.zip"))
+games2 <- games # just backup in case we need to go back to original values
 ```
 
 ## Quick Cleaning
 I used this to quickly cut out some outliers, but they need closer examination!
 ```{r}
-games_clean <- drop_na(games)
-outliers <- subset(games_clean, max_players >32 | avg_time > 240 | min_time > 240 | max_time > 240)
-games_clean <- subset(games_clean, max_players <=32 & avg_time <=240 & min_time <= 240 & max_time <= 480)
+games <- drop_na(games) # there's one NA column, annoyingly
+games_clean <- games
+outliers <- subset(games_clean, max_players >32 | avg_time > 240 | min_time > 240 | max_time > 240 | age > 18 | year < 1950 | min_players == 0 | max_players == 0 | weight == 0 | mechanic == "none")
+games_clean <- subset(games_clean, max_players <=32 & avg_time > 0 & min_time > 0 & max_time > 0 & avg_time <=480 & min_time <= 480 & max_time <= 480 & min_players > 0 & max_players > 0 & mechanic != "none")
 
 #head(games_clean)
 summary(games_clean)
@@ -37,6 +39,19 @@ Look at Outliers if necessary
 ```
 
 ## Cleaning
+
+### Drop Non-games
+```{r}
+bad_ids <- c("18291", "21804", "23953", "125048", "5985", "10904") # either nonspecific games like 'traditional card games' or non-games in the system
+```
+
+
+### Incorrect Values
+```{r}
+# Years
+# 108018 (riichi mahjong) is credited as being adapted in 1924
+```
+
 
 ### Mechanics
 https://boardgamegeek.com/browse/boardgamemechanic
@@ -51,6 +66,10 @@ mutate(Acting = 1)
 Acting = 0
 }
 ```{r}
+mech_raw2 <- unlist(strsplit(games$mechanic, ", "))
+mech_unique <- unique(mech_raw)
+mech_terms <- sort(mech_unique)
+
 mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
                "Area Control / Area Influence", "Area Enclosure", "Area Movement", "Area-Impulse",
                "Auction/Bidding", "Betting/Wagering", "Campaign / Battle Card Driven", "Card Drafting",
@@ -72,7 +91,7 @@ for(j in 1:length(mech_raw)){
   for(i in 1:length(games$mechanic)){
     games[i, as.character(mech_raw[j])] <- as.numeric(grepl(mech_raw[j], games$mechanic[i]))
   }
-  cat("now at ", round(j * 1.96), "% ... ")
+  cat("now at", round(j * 1.96), "% ... ")
 }
 
 # head(games)
@@ -99,11 +118,49 @@ Do the same thing with categories
 https://boardgamegeek.com/browse/boardgamecategory
 Maybe figure out way to just comma separate them into a new data frame and then pull out unique values?
 ```{r}
-cat_names <- as.data.frame(games$category)
-for (i in length(cat_names)){
-cat_names[i, ] <- strsplit(cat_names, ",")
+cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", "American Indian Wars",
+             "American Revolutionary War", "American West", "Ancient", "Animals", "Arabian", "Aviation / Flight", "Bluffing", "Book",
+             "Card Game", "Children's Game", "City Building", "Civil War", "Civilization", "Collectible Components", "Comic Book / Strip",
+             "Deduction", "Dice", "Economic", "Educational", "Electronic", "Environmental", "Expansion for Base-game", "Exploration", 
+             "Fan Expansion", "Fantasy", "Farming", "Fighting", "Game System", "Horror", "Humor", "Industry / Manufacturing", 
+             "Korean War", "Mafia", "Math", "Mature / Adult","Maze", "Medical", "Medieval", "Memory", "Miniatures", "Modern Warfare", 
+             "Movies / TV / Radio theme", "Murder/Mystery", "Music", "Mythology", "Napoleonic", "Nautical", "Negotiation", "Novel-based", 
+             "Number", "Party Game", "Pike and Shot", "Pirates", "Political", "Post-Napoleonic", "Prehistoric", "Print & Play", "Puzzle", 
+             "Racing", "Real-time", "Religious", "Renaissance", "Science Fiction", "Space Exploration", "Spies/Secret Agents", "Sports", 
+             "Territory Building", "Trains", "Transportation", "Travel", "Trivia", "Video Game Theme", "Vietnam War", "Wargame", 
+             "Word Game", "World War I", "World War II", "Zombies")
+```
+
+```{r}
+cat_raw2 <- unlist(strsplit(games$category, ", "))
+cat_unique <- unique(cat_raw2)
+cat_terms <- sort(cat_unique)
+
+# Add columns for each mechanic type
+games[, cat_raw] <- 0
+
+# Update values of dummy mechanics if present in games$mechanic
+for(j in 1:length(cat_raw)){
+  for(i in 1:length(games$category)){
+    games[i, as.character(cat_raw[j])] <- as.numeric(grepl(cat_raw[j], games$category[i]))
+  }
+  cat("now at", round(j * 1.19), "% ... ")
 }
-# View(head(cat_names))
+
+# head(games)
+```
+### Rename Categories
+```{r}
+# colnames(games)
+testnames <- games[1:5, ]
+colnames(testnames) <- tolower(colnames(testnames))
+colnames(testnames) <- gsub("co-op", "coop", colnames(testnames)) # odd one out with dash
+colnames(testnames) <- gsub("\\/", " ", colnames(testnames))
+colnames(testnames) <- gsub("-", " ", colnames(testnames))
+colnames(testnames) <- gsub(" and ", " ", colnames(testnames))
+colnames(testnames) <- gsub("  ", " ", colnames(testnames))
+colnames(testnames) <- gsub("  ", " ", colnames(testnames))
+colnames(testnames) <- gsub(" ", "_", colnames(testnames))
 ```
 
 ### Times
