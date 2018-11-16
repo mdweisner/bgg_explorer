@@ -100,8 +100,10 @@ https://boardgamegeek.com/browse/boardgamecategory
 Maybe figure out way to just comma separate them into a new data frame and then pull out unique values?
 ```{r}
 cat_names <- as.data.frame(games$category)
-cat_names <- extract(games, category, c("Type1", "Type2", "Type3", "Type4", "Type5", "Type6", "Type7"), sep = "([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+),([[:alnum:]]+)")
-head(cat_names)
+for (i in length(cat_names)){
+cat_names[i, ] <- strsplit(cat_names, ",")
+}
+# View(head(cat_names))
 ```
 
 ### Times
