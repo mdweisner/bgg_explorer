@@ -1,6 +1,6 @@
 ---
 title: "BGG Explorer Github"
-author: "Michael Weisner"
+author: "Michael Weisner and Chana Messinger"
 date: "November 2, 2018"
 output: html_document
 ---
@@ -9,9 +9,19 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Goals
++ K means cluster to recommendation?
++ Lasso penalized prediction of score
++ PCA Vector recommendation?
+
+## To Do:
++ Talk to Ben about project
++ Figure out what to do with data
+
 ## Libraries
 ```{r}
 library(tidyverse)
+library(dplyr)
 library(ggplot2)
 library(psych)
 ```
@@ -26,7 +36,7 @@ I used this to quickly cut out some outliers, but they need closer examination!
 ```{r}
 games <- drop_na(games) # there's one NA column, annoyingly
 games_clean <- games
-outliers <- subset(games_clean, max_players >32 | avg_time > 240 | min_time > 240 | max_time > 240 | age > 18 | year < 1950 | min_players == 0 | max_players == 0 | weight == 0 | mechanic == "none")
+outliers <- subset(games_clean, max_players > 32 | avg_time > 240 | min_time > 240 | max_time > 240 | age > 18 | year < 1950 | min_players == 0 | max_players == 0 | weight == 0 | mechanic == "none")
 games_clean <- subset(games_clean, max_players <=32 & avg_time > 0 & min_time > 0 & max_time > 0 & avg_time <=480 & min_time <= 480 & max_time <= 480 & min_players > 0 & max_players > 0 & mechanic != "none")
 
 #head(games_clean)
@@ -172,8 +182,8 @@ describe(games_clean$avg_time)
 
 
 ## Quick LM
-```{r}
-lm1 <- lm(geek_rating ~ min_players + max_players + avg_time + age + weight + Acting + `Action / Movement Programming` + `Action Point Allowance System` + `Area Control / Area Influence` + `Area Enclosure` + `Area-Impulse` + `Auction/Bidding` + `Betting/Wagering` + `Campaign / Battle Card Driven` + `Card Drafting` + `Chit-Pull System` + `Commodity Speculation` + `Cooperative Play` + `Crayon Rail System` + `Deck / Pool Building` + `Dice Rolling` + `Grid Movement` + `Hand Management` + `Hex-and-Counter` + `Line Drawing` + Memory + `Modular Board` + `Paper-and-Pencil` + `Partnerships` + `Pattern Building` + `Pick-up and Deliver` + `Player Elimination` + `Point to Point Movement` + `Press Your Luck` + `Rock-Paper-Scissors` + `Roll / Spin and Move` + `Route/Network Building` + `Secret Unit Deployment` + `Set Collection` + `Simulation` + `Simultaneous Action Selection` + `Singing` + `Stock Holding` + `Storytelling` + `Take That` + `Tile Placement` + `Time Track` + Trading + `Trick-taking` + `Variable Phase Order` + `Variable Player Powers` + Voting + `Worker Placement`, data = games_clean)
+```{r error=TRUE}
+lm1 <- lm(geek_rating ~ min_players + max_players + avg_time + age + weight + `Acting` + `Action / Movement Programming` + `Action Point Allowance System` + `Area Control / Area Influence` + `Area Enclosure` + `Area-Impulse` + `Auction/Bidding` + `Betting/Wagering` + `Campaign / Battle Card Driven` + `Card Drafting` + `Chit-Pull System` + `Commodity Speculation` + `Cooperative Play` + `Crayon Rail System` + `Deck / Pool Building` + `Dice Rolling` + `Grid Movement` + `Hand Management` + `Hex-and-Counter` + `Line Drawing` + Memory + `Modular Board` + `Paper-and-Pencil` + `Partnerships` + `Pattern Building` + `Pick-up and Deliver` + `Player Elimination` + `Point to Point Movement` + `Press Your Luck` + `Rock-Paper-Scissors` + `Roll / Spin and Move` + `Route/Network Building` + `Secret Unit Deployment` + `Set Collection` + `Simulation` + `Simultaneous Action Selection` + `Singing` + `Stock Holding` + `Storytelling` + `Take That` + `Tile Placement` + `Time Track` + Trading + `Trick-taking` + `Variable Phase Order` + `Variable Player Powers` + Voting + `Worker Placement`, data = games_clean)
 summary(lm1)
 ```
 
