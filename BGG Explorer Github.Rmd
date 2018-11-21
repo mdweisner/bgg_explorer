@@ -15,8 +15,8 @@ knitr::opts_chunk$set(echo = TRUE)
 + PCA Vector recommendation?
 
 ## To Do:
-+ Talk to Ben about project
-+ Figure out what to do with data
++ Talk to Ben about project (OK!)
++ Figure out what to do with data cleaning
 
 ## Libraries
 ```{r}
@@ -97,35 +97,36 @@ for(j in 1:length(mech_terms)){
 
 OLD WAY / Double Check
 ```{r eval=FALSE}
-mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
-               "Area Control / Area Influence", "Area Enclosure", "Area Movement", "Area-Impulse",
-               "Auction/Bidding", "Betting/Wagering", "Campaign / Battle Card Driven", "Card Drafting",
-               "Chit-Pull System", "Commodity Speculation", "Co-operative Play", "Crayon Rail System",
-               "Deck / Pool Building", "Dice Rolling", "Grid Movement", "Hand Management", "Hex-and-Counter",
-               "Line Drawing", "Memory", "Modular Board", "Paper-and-Pencil", "Partnerships", "Pattern Building",
-               "Pattern Recognition", "Pick-up and Deliver", "Player Elimination", "Point to Point Movement",
-               "Press Your Luck", "Rock-Paper-Scissors", "Role Playing", "Roll / Spin and Move", "Route/Network Building",
-               "Secret Unit Deployment", "Set Collection", "Simulation", "Simultaneous Action Selection", "Singing",
-               "Stock Holding", "Storytelling", "Take That", "Tile Placement", "Time Track", "Trading", "Trick-taking",
-               "Variable Phase Order", "Variable Player Powers", "Voting", "Worker Placement")
-
-
-# Add columns for each mechanic type
-games[, mech_raw] <- 0
-
-# Update values of dummy mechanics if present in games$mechanic
-for(j in 1:length(mech_raw)){
-  for(i in 1:length(games$mechanic)){
-    games[i, as.character(mech_raw[j])] <- as.numeric(grepl(mech_raw[j], games$mechanic[i]))
-  }
-  cat("now at", round(j * 1.96), "% ... ")
-}
-
-# head(games)
+# mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
+#                "Area Control / Area Influence", "Area Enclosure", "Area Movement", "Area-Impulse",
+#                "Auction/Bidding", "Betting/Wagering", "Campaign / Battle Card Driven", "Card Drafting",
+#                "Chit-Pull System", "Commodity Speculation", "Co-operative Play", "Crayon Rail System",
+#                "Deck / Pool Building", "Dice Rolling", "Grid Movement", "Hand Management", "Hex-and-Counter",
+#                "Line Drawing", "Memory", "Modular Board", "Paper-and-Pencil", "Partnerships", "Pattern Building",
+#                "Pattern Recognition", "Pick-up and Deliver", "Player Elimination", "Point to Point Movement",
+#                "Press Your Luck", "Rock-Paper-Scissors", "Role Playing", "Roll / Spin and Move", "Route/Network Building",
+#                "Secret Unit Deployment", "Set Collection", "Simulation", "Simultaneous Action Selection", "Singing",
+#                "Stock Holding", "Storytelling", "Take That", "Tile Placement", "Time Track", "Trading", "Trick-taking",
+#                "Variable Phase Order", "Variable Player Powers", "Voting", "Worker Placement")
+# 
+# 
+# # Add columns for each mechanic type
+# games[, mech_raw] <- 0
+# 
+# # Update values of dummy mechanics if present in games$mechanic
+# for(j in 1:length(mech_raw)){
+#   for(i in 1:length(games$mechanic)){
+#     games[i, as.character(mech_raw[j])] <- as.numeric(grepl(mech_raw[j], games$mechanic[i]))
+#   }
+#   cat("now at", round(j * 1.96), "% ... ")
+# }
+# 
+# # head(games)
 ```
 
 ### Rename Mechanics
 ```{r}
+library(data.table)
 ### testing first
 # colnames(games)
 # testnames <- games[1:5, ]
@@ -141,19 +142,32 @@ for(j in 1:length(mech_raw)){
 colnames(games) <- tolower(colnames(games))
 colnames(games) <- gsub("co-op", "coop", colnames(games)) # odd one out with dash
 colnames(games) <- gsub("\\/", " ", colnames(games))
+colnames(games) <- gsub("&", "", colnames(games))
 colnames(games) <- gsub("-", " ", colnames(games))
 colnames(games) <- gsub(" and ", " ", colnames(games))
 colnames(games) <- gsub("  ", " ", colnames(games))
 colnames(games) <- gsub("  ", " ", colnames(games))
 colnames(games) <- gsub(" ", "_", colnames(games))
-colnames(games) <- gsub("none", "no_mech", colnames(games))
+# colnames(games) <- gsub("none", "no_mech", colnames(games))
+
+mech_old_names <- colnames(select(games, acting:worker_placement))
+mech_new_names <- paste0('mech_', mech_old_names)
+setnames(games, old = mech_old_names, new = mech_new_names)
+
+head(select(games, mech_acting:mech_worker_placement))
 ```
 
 Check Nones
 ```{r}
-sum(games$no_mech)
-mech_miss <- games[games$no_mech == 1, ]
+sum(games$mech_none)
+mech_miss <- games[games$mech_none == 1, ]
 # games <- rename(games, no_mech = none )
+```
+Total Mechanics
+```{r}
+games <- games %>%
+  mutate(mech_total = rowSums(select(games, mech_acting:mech_worker_placement)))
+summary(games$mech_total)
 ```
 
 
@@ -164,17 +178,17 @@ Maybe figure out way to just comma separate them into a new data frame and then 
 
 Old way (for checking)
 ```{r}
-cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", "American Indian Wars",
-             "American Revolutionary War", "American West", "Ancient", "Animals", "Arabian", "Aviation / Flight", "Bluffing", "Book",
-             "Card Game", "Children's Game", "City Building", "Civil War", "Civilization", "Collectible Components", "Comic Book / Strip",
-             "Deduction", "Dice", "Economic", "Educational", "Electronic", "Environmental", "Expansion for Base-game", "Exploration", 
-             "Fan Expansion", "Fantasy", "Farming", "Fighting", "Game System", "Horror", "Humor", "Industry / Manufacturing", 
-             "Korean War", "Mafia", "Math", "Mature / Adult","Maze", "Medical", "Medieval", "Memory", "Miniatures", "Modern Warfare", 
-             "Movies / TV / Radio theme", "Murder/Mystery", "Music", "Mythology", "Napoleonic", "Nautical", "Negotiation", "Novel-based", 
-             "Number", "Party Game", "Pike and Shot", "Pirates", "Political", "Post-Napoleonic", "Prehistoric", "Print & Play", "Puzzle", 
-             "Racing", "Real-time", "Religious", "Renaissance", "Science Fiction", "Space Exploration", "Spies/Secret Agents", "Sports", 
-             "Territory Building", "Trains", "Transportation", "Travel", "Trivia", "Video Game Theme", "Vietnam War", "Wargame", 
-             "Word Game", "World War I", "World War II", "Zombies")
+# cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", "American Indian Wars",
+#              "American Revolutionary War", "American West", "Ancient", "Animals", "Arabian", "Aviation / Flight", "Bluffing", "Book",
+#              "Card Game", "Children's Game", "City Building", "Civil War", "Civilization", "Collectible Components", "Comic Book / Strip",
+#              "Deduction", "Dice", "Economic", "Educational", "Electronic", "Environmental", "Expansion for Base-game", "Exploration", 
+#              "Fan Expansion", "Fantasy", "Farming", "Fighting", "Game System", "Horror", "Humor", "Industry / Manufacturing", 
+#              "Korean War", "Mafia", "Math", "Mature / Adult","Maze", "Medical", "Medieval", "Memory", "Miniatures", "Modern Warfare", 
+#              "Movies / TV / Radio theme", "Murder/Mystery", "Music", "Mythology", "Napoleonic", "Nautical", "Negotiation", "Novel-based", 
+#              "Number", "Party Game", "Pike and Shot", "Pirates", "Political", "Post-Napoleonic", "Prehistoric", "Print & Play", "Puzzle", 
+#              "Racing", "Real-time", "Religious", "Renaissance", "Science Fiction", "Space Exploration", "Spies/Secret Agents", "Sports", 
+#              "Territory Building", "Trains", "Transportation", "Travel", "Trivia", "Video Game Theme", "Vietnam War", "Wargame", 
+#              "Word Game", "World War I", "World War II", "Zombies")
 ```
 
 New Way
@@ -201,29 +215,44 @@ for(j in 1:length(cat_terms)){
 colnames(games) <- tolower(colnames(games))
 colnames(games) <- gsub("co-op", "coop", colnames(games)) # odd one out with dash
 colnames(games) <- gsub("\\/", " ", colnames(games))
+colnames(games) <- gsub("&", "", colnames(games))
 colnames(games) <- gsub("-", " ", colnames(games))
 colnames(games) <- gsub(" and ", " ", colnames(games))
 colnames(games) <- gsub("  ", " ", colnames(games))
 colnames(games) <- gsub("  ", " ", colnames(games))
 colnames(games) <- gsub(" ", "_", colnames(games))
-colnames(games) <- gsub("none", "no_cat", colnames(games))
+colnames(games) <- gsub("\\'", "", colnames(games))
+
+#head(select(games, abstract_strategy:zombies))
+
+cat_old_names <- colnames(select(games, abstract_strategy:zombies))
+cat_new_names <- paste0('cat_', cat_old_names)
+setnames(games, old = cat_old_names, new = cat_new_names)
+head(games)
+head(select(games, cat_abstract_strategy:cat_zombies))
+```
+Total Categories
+```{r}
+games <- games %>%
+  mutate(cat_total = rowSums(select(games, cat_abstract_strategy:cat_zombies)))
+summary(games$cat_total)
 ```
 
 Check Nones
 ```{r}
-sum(games$no_cat)
+sum(games$cat_none)
 # games <- rename(games, no_cat = none)
-cat_miss <- games[games$no_cat == 1, ]
+cat_miss <- games[games$cat_none == 1, ]
 ```
 Check Both Missing
 ```{r}
-missing_all <- cat_miss[cat_miss$no_mech == 1, ]
+missing_all <- cat_miss[cat_miss$mech_none == 1, ]
 ```
 
 
 ### Times
 ```{r}
-describe(games_clean$avg_time)
+describe(games$avg_time)
 ```
 
 ### Num Players
@@ -231,7 +260,9 @@ describe(games_clean$avg_time)
 
 ## Quick LM
 ```{r error=TRUE}
-lm1 <- lm(geek_rating ~ min_players + max_players + avg_time + age + weight + `Acting` + `Action / Movement Programming` + `Action Point Allowance System` + `Area Control / Area Influence` + `Area Enclosure` + `Area-Impulse` + `Auction/Bidding` + `Betting/Wagering` + `Campaign / Battle Card Driven` + `Card Drafting` + `Chit-Pull System` + `Commodity Speculation` + `Cooperative Play` + `Crayon Rail System` + `Deck / Pool Building` + `Dice Rolling` + `Grid Movement` + `Hand Management` + `Hex-and-Counter` + `Line Drawing` + Memory + `Modular Board` + `Paper-and-Pencil` + `Partnerships` + `Pattern Building` + `Pick-up and Deliver` + `Player Elimination` + `Point to Point Movement` + `Press Your Luck` + `Rock-Paper-Scissors` + `Roll / Spin and Move` + `Route/Network Building` + `Secret Unit Deployment` + `Set Collection` + `Simulation` + `Simultaneous Action Selection` + `Singing` + `Stock Holding` + `Storytelling` + `Take That` + `Tile Placement` + `Time Track` + Trading + `Trick-taking` + `Variable Phase Order` + `Variable Player Powers` + Voting + `Worker Placement`, data = games_clean)
+lm_sub <- games %>%
+  select(min_players:cat_total, -num_votes, -image_url, -mechanic, -category, -designer, -owned, -avg_rating, -mech_none, -cat_none)
+lm1 <- lm(geek_rating ~ ., data = lm_sub)
 summary(lm1)
 ```
 
