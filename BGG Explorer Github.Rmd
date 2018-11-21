@@ -65,16 +65,8 @@ bad_ids <- c("18291", "21804", "23953", "125048", "5985", "10904") # either nons
 
 ### Mechanics
 https://boardgamegeek.com/browse/boardgamemechanic
-Create dummy variables for mechanics?
-Idea: do a for loop that goes through the mechanics vector and looks for the string matching that vector location across the Mechanics variable, and if so adding a 1 to a new mechanic for that column?
+Create Dummy Variables for each mechanic
 
-Maybe:
-games$mechanic %>%
-if(str_detect("Acting") {
-mutate(Acting = 1)
-} else{
-Acting = 0
-}
 ```{r}
 mech_raw2 <- unlist(strsplit(games$mechanic, ", "))
 mech_unique <- unique(mech_raw2)
@@ -95,7 +87,7 @@ for(j in 1:length(mech_terms)){
 ```
 
 
-OLD WAY / Double Check
+_OLD WAY / Double Check_
 ```{r eval=FALSE}
 # mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
 #                "Area Control / Area Influence", "Area Enclosure", "Area Movement", "Area-Impulse",
@@ -157,26 +149,30 @@ setnames(games, old = mech_old_names, new = mech_new_names)
 head(select(games, mech_acting:mech_worker_placement))
 ```
 
-Check Nones
+### Check Nones
 ```{r}
 sum(games$mech_none)
 mech_miss <- games[games$mech_none == 1, ]
 # games <- rename(games, no_mech = none )
 ```
-Total Mechanics
+### Total Mechanics
 ```{r}
 games <- games %>%
   mutate(mech_total = rowSums(select(games, mech_acting:mech_worker_placement)))
 summary(games$mech_total)
 ```
 
+### Review Mech Stats
+```{r}
+describe(select(games, mech_acting:mech_worker_placement))
+```
 
 ### Categories
 Do the same thing with categories
 https://boardgamegeek.com/browse/boardgamecategory
 Maybe figure out way to just comma separate them into a new data frame and then pull out unique values?
 
-Old way (for checking)
+_Old way (for doublechecking)_
 ```{r}
 # cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", "American Indian Wars",
 #              "American Revolutionary War", "American West", "Ancient", "Animals", "Arabian", "Aviation / Flight", "Bluffing", "Book",
@@ -191,7 +187,7 @@ Old way (for checking)
 #              "Word Game", "World War I", "World War II", "Zombies")
 ```
 
-New Way
+_New Way_
 ```{r}
 cat_raw2 <- unlist(strsplit(games$category, ", "))
 cat_unique <- unique(cat_raw2)
@@ -231,24 +227,39 @@ setnames(games, old = cat_old_names, new = cat_new_names)
 head(games)
 head(select(games, cat_abstract_strategy:cat_zombies))
 ```
-Total Categories
+### Total Categories
 ```{r}
 games <- games %>%
   mutate(cat_total = rowSums(select(games, cat_abstract_strategy:cat_zombies)))
 summary(games$cat_total)
 ```
 
-Check Nones
+### Check Nones
 ```{r}
 sum(games$cat_none)
 # games <- rename(games, no_cat = none)
 cat_miss <- games[games$cat_none == 1, ]
 ```
-Check Both Missing
+### Check Both Missing
 ```{r}
 missing_all <- cat_miss[cat_miss$mech_none == 1, ]
 ```
 
+### Review Category Stats
+```{r}
+describe(select(games, cat_abstract_strategy:cat_zombies))
+```
+
+
+### Check Some Stats!
+```{r}
+filter(games, grepl("Harbour", names))
+filter(games, grepl("Pandemic", ignore.case = TRUE, names))
+filter(games, grepl("cthulhu", ignore.case = TRUE, names))
+game_expansions <- games %>%
+  filter(cat_expansion_for_base_game == 1)
+game_expansions
+```
 
 ### Times
 ```{r}
