@@ -77,9 +77,26 @@ Acting = 0
 }
 ```{r}
 mech_raw2 <- unlist(strsplit(games$mechanic, ", "))
-mech_unique <- unique(mech_raw)
+mech_unique <- unique(mech_raw2)
 mech_terms <- sort(mech_unique)
 
+# Add columns for each mechanic type
+games[, mech_terms] <- 0
+
+# Update values of dummy mechanics if present in games$mechanic
+for(j in 1:length(mech_terms)){
+  for(i in 1:length(games$mechanic)){
+    games[i, as.character(mech_terms[j])] <- as.numeric(grepl(mech_terms[j], games$mechanic[i]))
+  }
+  cat("now at", round(j * 1.96), "% ... ")
+}
+
+
+```
+
+
+OLD WAY / Double Check
+```{r eval=FALSE}
 mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
                "Area Control / Area Influence", "Area Enclosure", "Area Movement", "Area-Impulse",
                "Auction/Bidding", "Betting/Wagering", "Campaign / Battle Card Driven", "Card Drafting",
@@ -109,17 +126,34 @@ for(j in 1:length(mech_raw)){
 
 ### Rename Mechanics
 ```{r}
+### testing first
 # colnames(games)
-testnames <- games[1:5, ]
-colnames(testnames) <- tolower(colnames(testnames))
-colnames(testnames) <- gsub("co-op", "coop", colnames(testnames)) # odd one out with dash
-colnames(testnames) <- gsub("\\/", " ", colnames(testnames))
-colnames(testnames) <- gsub("-", " ", colnames(testnames))
-colnames(testnames) <- gsub(" and ", " ", colnames(testnames))
-colnames(testnames) <- gsub("  ", " ", colnames(testnames))
-colnames(testnames) <- gsub("  ", " ", colnames(testnames))
-colnames(testnames) <- gsub(" ", "_", colnames(testnames))
+# testnames <- games[1:5, ]
+# colnames(testnames) <- tolower(colnames(testnames))
+# colnames(testnames) <- gsub("co-op", "coop", colnames(testnames)) # odd one out with dash
+# colnames(testnames) <- gsub("\\/", " ", colnames(testnames))
+# colnames(testnames) <- gsub("-", " ", colnames(testnames))
+# colnames(testnames) <- gsub(" and ", " ", colnames(testnames))
+# colnames(testnames) <- gsub("  ", " ", colnames(testnames))
+# colnames(testnames) <- gsub("  ", " ", colnames(testnames))
+# colnames(testnames) <- gsub(" ", "_", colnames(testnames))
 
+colnames(games) <- tolower(colnames(games))
+colnames(games) <- gsub("co-op", "coop", colnames(games)) # odd one out with dash
+colnames(games) <- gsub("\\/", " ", colnames(games))
+colnames(games) <- gsub("-", " ", colnames(games))
+colnames(games) <- gsub(" and ", " ", colnames(games))
+colnames(games) <- gsub("  ", " ", colnames(games))
+colnames(games) <- gsub("  ", " ", colnames(games))
+colnames(games) <- gsub(" ", "_", colnames(games))
+colnames(games) <- gsub("none", "no_mech", colnames(games))
+```
+
+Check Nones
+```{r}
+sum(games$no_mech)
+mech_miss <- games[games$no_mech == 1, ]
+# games <- rename(games, no_mech = none )
 ```
 
 
@@ -127,6 +161,8 @@ colnames(testnames) <- gsub(" ", "_", colnames(testnames))
 Do the same thing with categories
 https://boardgamegeek.com/browse/boardgamecategory
 Maybe figure out way to just comma separate them into a new data frame and then pull out unique values?
+
+Old way (for checking)
 ```{r}
 cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", "American Indian Wars",
              "American Revolutionary War", "American West", "Ancient", "Animals", "Arabian", "Aviation / Flight", "Bluffing", "Book",
@@ -141,18 +177,19 @@ cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Rea
              "Word Game", "World War I", "World War II", "Zombies")
 ```
 
+New Way
 ```{r}
 cat_raw2 <- unlist(strsplit(games$category, ", "))
 cat_unique <- unique(cat_raw2)
 cat_terms <- sort(cat_unique)
 
 # Add columns for each mechanic type
-games[, cat_raw] <- 0
+games[, cat_terms] <- 0
 
 # Update values of dummy mechanics if present in games$mechanic
-for(j in 1:length(cat_raw)){
+for(j in 1:length(cat_terms)){
   for(i in 1:length(games$category)){
-    games[i, as.character(cat_raw[j])] <- as.numeric(grepl(cat_raw[j], games$category[i]))
+    games[i, as.character(cat_terms[j])] <- as.numeric(grepl(cat_terms[j], games$category[i]))
   }
   cat("now at", round(j * 1.19), "% ... ")
 }
@@ -161,17 +198,28 @@ for(j in 1:length(cat_raw)){
 ```
 ### Rename Categories
 ```{r}
-# colnames(games)
-testnames <- games[1:5, ]
-colnames(testnames) <- tolower(colnames(testnames))
-colnames(testnames) <- gsub("co-op", "coop", colnames(testnames)) # odd one out with dash
-colnames(testnames) <- gsub("\\/", " ", colnames(testnames))
-colnames(testnames) <- gsub("-", " ", colnames(testnames))
-colnames(testnames) <- gsub(" and ", " ", colnames(testnames))
-colnames(testnames) <- gsub("  ", " ", colnames(testnames))
-colnames(testnames) <- gsub("  ", " ", colnames(testnames))
-colnames(testnames) <- gsub(" ", "_", colnames(testnames))
+colnames(games) <- tolower(colnames(games))
+colnames(games) <- gsub("co-op", "coop", colnames(games)) # odd one out with dash
+colnames(games) <- gsub("\\/", " ", colnames(games))
+colnames(games) <- gsub("-", " ", colnames(games))
+colnames(games) <- gsub(" and ", " ", colnames(games))
+colnames(games) <- gsub("  ", " ", colnames(games))
+colnames(games) <- gsub("  ", " ", colnames(games))
+colnames(games) <- gsub(" ", "_", colnames(games))
+colnames(games) <- gsub("none", "no_cat", colnames(games))
 ```
+
+Check Nones
+```{r}
+sum(games$no_cat)
+# games <- rename(games, no_cat = none)
+cat_miss <- games[games$no_cat == 1, ]
+```
+Check Both Missing
+```{r}
+missing_all <- cat_miss[cat_miss$no_mech == 1, ]
+```
+
 
 ### Times
 ```{r}
