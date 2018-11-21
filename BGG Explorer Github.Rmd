@@ -66,27 +66,6 @@ bad_ids <- c("18291", "21804", "23953", "125048", "5985", "10904") # either nons
 ### Mechanics
 https://boardgamegeek.com/browse/boardgamemechanic
 Create Dummy Variables for each mechanic
-
-```{r}
-mech_raw2 <- unlist(strsplit(games$mechanic, ", "))
-mech_unique <- unique(mech_raw2)
-mech_terms <- sort(mech_unique)
-
-# Add columns for each mechanic type
-games[, mech_terms] <- 0
-
-# Update values of dummy mechanics if present in games$mechanic
-for(j in 1:length(mech_terms)){
-  for(i in 1:length(games$mechanic)){
-    games[i, as.character(mech_terms[j])] <- as.numeric(grepl(mech_terms[j], games$mechanic[i]))
-  }
-  cat("now at", round(j * 1.96), "% ... ")
-}
-
-
-```
-
-
 _OLD WAY / Double Check_
 ```{r eval=FALSE}
 # mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
@@ -116,9 +95,30 @@ _OLD WAY / Double Check_
 # # head(games)
 ```
 
-### Rename Mechanics
+_NEW WAY_
 ```{r}
-library(data.table)
+mech_raw2 <- unlist(strsplit(games$mechanic, ", "))
+mech_unique <- unique(mech_raw2)
+mech_terms <- sort(mech_unique)
+
+# Add columns for each mechanic type
+games[, mech_terms] <- 0
+
+# Update values of dummy mechanics if present in games$mechanic
+for(j in 1:length(mech_terms)){
+  for(i in 1:length(games$mechanic)){
+    games[i, as.character(mech_terms[j])] <- as.numeric(grepl(mech_terms[j], games$mechanic[i]))
+  }
+  cat("now at", round(j * 1.96), "% ... ")
+}
+
+
+```
+
+### Rename Mechanics
+
+Test Rename
+```{r}
 ### testing first
 # colnames(games)
 # testnames <- games[1:5, ]
@@ -130,7 +130,10 @@ library(data.table)
 # colnames(testnames) <- gsub("  ", " ", colnames(testnames))
 # colnames(testnames) <- gsub("  ", " ", colnames(testnames))
 # colnames(testnames) <- gsub(" ", "_", colnames(testnames))
+```
 
+```{r}
+library(data.table)
 colnames(games) <- tolower(colnames(games))
 colnames(games) <- gsub("co-op", "coop", colnames(games)) # odd one out with dash
 colnames(games) <- gsub("\\/", " ", colnames(games))
@@ -170,21 +173,23 @@ describe(select(games, mech_acting:mech_worker_placement))
 ### Categories
 Do the same thing with categories
 https://boardgamegeek.com/browse/boardgamecategory
-Maybe figure out way to just comma separate them into a new data frame and then pull out unique values?
 
 _Old way (for doublechecking)_
 ```{r}
-# cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", "American Indian Wars",
-#              "American Revolutionary War", "American West", "Ancient", "Animals", "Arabian", "Aviation / Flight", "Bluffing", "Book",
-#              "Card Game", "Children's Game", "City Building", "Civil War", "Civilization", "Collectible Components", "Comic Book / Strip",
-#              "Deduction", "Dice", "Economic", "Educational", "Electronic", "Environmental", "Expansion for Base-game", "Exploration", 
-#              "Fan Expansion", "Fantasy", "Farming", "Fighting", "Game System", "Horror", "Humor", "Industry / Manufacturing", 
-#              "Korean War", "Mafia", "Math", "Mature / Adult","Maze", "Medical", "Medieval", "Memory", "Miniatures", "Modern Warfare", 
-#              "Movies / TV / Radio theme", "Murder/Mystery", "Music", "Mythology", "Napoleonic", "Nautical", "Negotiation", "Novel-based", 
-#              "Number", "Party Game", "Pike and Shot", "Pirates", "Political", "Post-Napoleonic", "Prehistoric", "Print & Play", "Puzzle", 
-#              "Racing", "Real-time", "Religious", "Renaissance", "Science Fiction", "Space Exploration", "Spies/Secret Agents", "Sports", 
-#              "Territory Building", "Trains", "Transportation", "Travel", "Trivia", "Video Game Theme", "Vietnam War", "Wargame", 
-#              "Word Game", "World War I", "World War II", "Zombies")
+# cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", 
+#              "American Indian Wars", "American Revolutionary War", "American West", "Ancient", "Animals",
+#              "Arabian", "Aviation / Flight", "Bluffing", "Book", "Card Game", "Children's Game", "City Building",
+#              "Civil War", "Civilization", "Collectible Components", "Comic Book / Strip", "Deduction", 
+#              "Dice", "Economic", "Educational", "Electronic", "Environmental", "Expansion for Base-game", 
+#              "Exploration", "Fan Expansion", "Fantasy", "Farming", "Fighting", "Game System", "Horror", 
+#              "Humor", "Industry / Manufacturing", "Korean War", "Mafia", "Math", "Mature / Adult","Maze",
+#              "Medical", "Medieval", "Memory", "Miniatures", "Modern Warfare", "Movies / TV / Radio theme",
+#              "Murder/Mystery", "Music", "Mythology", "Napoleonic", "Nautical", "Negotiation", "Novel-based",
+#              "Number", "Party Game", "Pike and Shot", "Pirates", "Political", "Post-Napoleonic", "Prehistoric",
+#              "Print & Play", "Puzzle", "Racing", "Real-time", "Religious", "Renaissance", "Science Fiction",
+#              "Space Exploration", "Spies/Secret Agents", "Sports", "Territory Building", "Trains", "Transportation",
+#              "Travel", "Trivia", "Video Game Theme", "Vietnam War", "Wargame", "Word Game", "World War I", 
+#              "World War II", "Zombies")
 ```
 
 _New Way_
@@ -219,8 +224,6 @@ colnames(games) <- gsub("  ", " ", colnames(games))
 colnames(games) <- gsub(" ", "_", colnames(games))
 colnames(games) <- gsub("\\'", "", colnames(games))
 
-#head(select(games, abstract_strategy:zombies))
-
 cat_old_names <- colnames(select(games, abstract_strategy:zombies))
 cat_new_names <- paste0('cat_', cat_old_names)
 setnames(games, old = cat_old_names, new = cat_new_names)
@@ -237,7 +240,6 @@ summary(games$cat_total)
 ### Check Nones
 ```{r}
 sum(games$cat_none)
-# games <- rename(games, no_cat = none)
 cat_miss <- games[games$cat_none == 1, ]
 ```
 ### Check Both Missing
@@ -253,9 +255,10 @@ describe(select(games, cat_abstract_strategy:cat_zombies))
 
 ### Check Some Stats!
 ```{r}
-filter(games, grepl("Harbour", names))
-filter(games, grepl("Pandemic", ignore.case = TRUE, names))
+filter(games, grepl("harbour", ignore.case = TRUE, names))
+filter(games, grepl("pandemic", ignore.case = TRUE, names))
 filter(games, grepl("cthulhu", ignore.case = TRUE, names))
+filter(games, grepl("tiny epic", ignore.case = TRUE, names))
 game_expansions <- games %>%
   filter(cat_expansion_for_base_game == 1)
 game_expansions
