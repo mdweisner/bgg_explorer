@@ -29,6 +29,10 @@ library(psych)
 ```{r}
 games <- read_csv(unzip("~/bgg_explorer/bgg_db_1806.csv.zip"))
 games2 <- games # just backup in case we need to go back to original values
+modern_games <- games %>%
+  filter(year >= 1970)
+old_games <- games %>%
+  filter(year < 1970)
 ```
 
 ## Quick Cleaning
