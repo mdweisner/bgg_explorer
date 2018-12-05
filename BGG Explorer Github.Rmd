@@ -29,20 +29,20 @@ library(psych)
 ```{r}
 games <- read_csv(unzip("~/bgg_explorer/bgg_db_1806.csv.zip"))
 games2 <- games # just backup in case we need to go back to original values
-modern_games <- games %>%
-  filter(year >= 1970)
-old_games <- games %>%
-  filter(year < 1970)
 ```
 
 ## Quick Cleaning
 I used this to quickly cut out some outliers, but they need closer examination!
+A few things were decided here. 
++ One Night Ultimate Werewolf has the highest specified player count of 75. Some games list 99, seemingly to suggest unlimited players but this is not true and completely impractical. While they could be recoded, as there's no actual specified number of people it makes the data skewed and is easier to drop. 
++ Similarly, games with 0 players are useless as a game needs people.
++ There are two boardgames that are 21+ because they involve alcohol. One game has a suggested age of 42 which makes it somewhat useless for the context.
++ We will focus on "modern" games, choosing 1970 semi-arbitrarily. The 1980s and 1990s are considered the modern renaissance, so it seemed pertinent to look at games leading up to it. This is mostly to weed out ancient games, like go and chess that go back thousands of years and skew the sample.
++ Lastly, games with no category and mechanic are fundamentally useless, so they will be ignored here.
 ```{r}
 games <- drop_na(games) # there's one NA column, annoyingly
-games_clean <- games
-outliers <- subset(games_clean, max_players > 32 | avg_time > 240 | min_time > 240 | max_time > 240 | age > 18 | year < 1950 | min_players == 0 | max_players == 0 | weight == 0 | mechanic == "none")
-games_clean <- subset(games_clean, max_players <=32 & avg_time > 0 & min_time > 0 & max_time > 0 & avg_time <=480 & min_time <= 480 & max_time <= 480 & min_players > 0 & max_players > 0 & mechanic != "none")
-
+outliers <- subset(games, min_players > 75 | max_players > 75 | max_players > 75 | min_players == 0 | max_players == 0 | weight == 0 | avg_time > 1000 | min_time > 1000 | max_time > 1000 | avg_time == 0 | min_time == 0 | max_time == 0 | age > 21 | year < 1970 | mechanic == "none" | category == "none")
+games_clean <- subset(games, !(game_id %in% outliers$game_id))
 #head(games_clean)
 summary(games_clean)
 ```
