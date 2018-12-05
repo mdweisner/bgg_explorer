@@ -70,48 +70,18 @@ bad_ids <- c("18291", "21804", "23953", "125048", "5985", "10904") # either nons
 ### Mechanics
 https://boardgamegeek.com/browse/boardgamemechanic
 Create Dummy Variables for each mechanic
-_OLD WAY / Double Check_
-```{r eval=FALSE}
-# mech_raw <- c("Acting","Action / Movement Programming", "Action Point Allowance System", 
-#                "Area Control / Area Influence", "Area Enclosure", "Area Movement", "Area-Impulse",
-#                "Auction/Bidding", "Betting/Wagering", "Campaign / Battle Card Driven", "Card Drafting",
-#                "Chit-Pull System", "Commodity Speculation", "Co-operative Play", "Crayon Rail System",
-#                "Deck / Pool Building", "Dice Rolling", "Grid Movement", "Hand Management", "Hex-and-Counter",
-#                "Line Drawing", "Memory", "Modular Board", "Paper-and-Pencil", "Partnerships", "Pattern Building",
-#                "Pattern Recognition", "Pick-up and Deliver", "Player Elimination", "Point to Point Movement",
-#                "Press Your Luck", "Rock-Paper-Scissors", "Role Playing", "Roll / Spin and Move", "Route/Network Building",
-#                "Secret Unit Deployment", "Set Collection", "Simulation", "Simultaneous Action Selection", "Singing",
-#                "Stock Holding", "Storytelling", "Take That", "Tile Placement", "Time Track", "Trading", "Trick-taking",
-#                "Variable Phase Order", "Variable Player Powers", "Voting", "Worker Placement")
-# 
-# 
-# # Add columns for each mechanic type
-# games[, mech_raw] <- 0
-# 
-# # Update values of dummy mechanics if present in games$mechanic
-# for(j in 1:length(mech_raw)){
-#   for(i in 1:length(games$mechanic)){
-#     games[i, as.character(mech_raw[j])] <- as.numeric(grepl(mech_raw[j], games$mechanic[i]))
-#   }
-#   cat("now at", round(j * 1.96), "% ... ")
-# }
-# 
-# # head(games)
-```
-
-_NEW WAY_
 ```{r}
-mech_raw2 <- unlist(strsplit(games$mechanic, ", "))
+mech_raw2 <- unlist(strsplit(games_clean$mechanic, ", "))
 mech_unique <- unique(mech_raw2)
 mech_terms <- sort(mech_unique)
 
 # Add columns for each mechanic type
-games[, mech_terms] <- 0
+games_clean[, mech_terms] <- 0
 
-# Update values of dummy mechanics if present in games$mechanic
+# Update values of dummy mechanics if present in games_clean$mechanic
 for(j in 1:length(mech_terms)){
-  for(i in 1:length(games$mechanic)){
-    games[i, as.character(mech_terms[j])] <- as.numeric(grepl(mech_terms[j], games$mechanic[i]))
+  for(i in 1:length(games_clean$mechanic)){
+    games_clean[i, as.character(mech_terms[j])] <- as.numeric(grepl(mech_terms[j], games_clean$mechanic[i]))
   }
   cat("now at", round(j * 1.96), "% ... ")
 }
@@ -138,40 +108,40 @@ Test Rename
 
 ```{r}
 library(data.table)
-colnames(games) <- tolower(colnames(games))
-colnames(games) <- gsub("co-op", "coop", colnames(games)) # odd one out with dash
-colnames(games) <- gsub("\\/", " ", colnames(games))
-colnames(games) <- gsub("&", "", colnames(games))
-colnames(games) <- gsub("-", " ", colnames(games))
-colnames(games) <- gsub(" and ", " ", colnames(games))
-colnames(games) <- gsub("  ", " ", colnames(games))
-colnames(games) <- gsub("  ", " ", colnames(games))
-colnames(games) <- gsub(" ", "_", colnames(games))
-# colnames(games) <- gsub("none", "no_mech", colnames(games))
+colnames(games_clean) <- tolower(colnames(games_clean))
+colnames(games_clean) <- gsub("co-op", "coop", colnames(games_clean)) # odd one out with dash
+colnames(games_clean) <- gsub("\\/", " ", colnames(games_clean))
+colnames(games_clean) <- gsub("&", "", colnames(games_clean))
+colnames(games_clean) <- gsub("-", " ", colnames(games_clean))
+colnames(games_clean) <- gsub(" and ", " ", colnames(games_clean))
+colnames(games_clean) <- gsub("  ", " ", colnames(games_clean))
+colnames(games_clean) <- gsub("  ", " ", colnames(games_clean))
+colnames(games_clean) <- gsub(" ", "_", colnames(games_clean))
+# colnames(games_clean) <- gsub("none", "no_mech", colnames(games_clean))
 
-mech_old_names <- colnames(select(games, acting:worker_placement))
+mech_old_names <- colnames(select(games_clean, acting:worker_placement))
 mech_new_names <- paste0('mech_', mech_old_names)
-setnames(games, old = mech_old_names, new = mech_new_names)
+setnames(games_clean, old = mech_old_names, new = mech_new_names)
 
-head(select(games, mech_acting:mech_worker_placement))
+head(select(games_clean, mech_acting:mech_worker_placement))
 ```
 
 ### Check Nones
 ```{r}
-sum(games$mech_none)
-mech_miss <- games[games$mech_none == 1, ]
-# games <- rename(games, no_mech = none )
+sum(games_clean$mech_none)
+mech_miss <- games_clean[games_clean$mech_none == 1, ]
+# games_clean <- rename(games_clean, no_mech = none )
 ```
 ### Total Mechanics
 ```{r}
-games <- games %>%
-  mutate(mech_total = rowSums(select(games, mech_acting:mech_worker_placement)))
-summary(games$mech_total)
+games_clean <- games_clean %>%
+  mutate(mech_total = rowSums(select(games_clean, mech_acting:mech_worker_placement)))
+summary(games_clean$mech_total)
 ```
 
 ### Review Mech Stats
 ```{r}
-describe(select(games, mech_acting:mech_worker_placement))
+describe(select(games_clean, mech_acting:mech_worker_placement))
 ```
 
 ### Categories
@@ -198,53 +168,53 @@ _Old way (for doublechecking)_
 
 _New Way_
 ```{r}
-cat_raw2 <- unlist(strsplit(games$category, ", "))
+cat_raw2 <- unlist(strsplit(games_clean$category, ", "))
 cat_unique <- unique(cat_raw2)
 cat_terms <- sort(cat_unique)
 
 # Add columns for each mechanic type
-games[, cat_terms] <- 0
+games_clean[, cat_terms] <- 0
 
-# Update values of dummy mechanics if present in games$mechanic
+# Update values of dummy mechanics if present in games_clean$mechanic
 for(j in 1:length(cat_terms)){
-  for(i in 1:length(games$category)){
-    games[i, as.character(cat_terms[j])] <- as.numeric(grepl(cat_terms[j], games$category[i]))
+  for(i in 1:length(games_clean$category)){
+    games_clean[i, as.character(cat_terms[j])] <- as.numeric(grepl(cat_terms[j], games_clean$category[i]))
   }
   cat("now at", round(j * 1.19), "% ... ")
 }
 
-# head(games)
+# head(games_clean)
 ```
 ### Rename Categories
 ```{r}
-colnames(games) <- tolower(colnames(games))
-colnames(games) <- gsub("co-op", "coop", colnames(games)) # odd one out with dash
-colnames(games) <- gsub("\\/", " ", colnames(games))
-colnames(games) <- gsub("&", "", colnames(games))
-colnames(games) <- gsub("-", " ", colnames(games))
-colnames(games) <- gsub(" and ", " ", colnames(games))
-colnames(games) <- gsub("  ", " ", colnames(games))
-colnames(games) <- gsub("  ", " ", colnames(games))
-colnames(games) <- gsub(" ", "_", colnames(games))
-colnames(games) <- gsub("\\'", "", colnames(games))
+colnames(games_clean) <- tolower(colnames(games_clean))
+colnames(games_clean) <- gsub("co-op", "coop", colnames(games_clean)) # odd one out with dash
+colnames(games_clean) <- gsub("\\/", " ", colnames(games_clean))
+colnames(games_clean) <- gsub("&", "", colnames(games_clean))
+colnames(games_clean) <- gsub("-", " ", colnames(games_clean))
+colnames(games_clean) <- gsub(" and ", " ", colnames(games_clean))
+colnames(games_clean) <- gsub("  ", " ", colnames(games_clean))
+colnames(games_clean) <- gsub("  ", " ", colnames(games_clean))
+colnames(games_clean) <- gsub(" ", "_", colnames(games_clean))
+colnames(games_clean) <- gsub("\\'", "", colnames(games_clean))
 
-cat_old_names <- colnames(select(games, abstract_strategy:zombies))
+cat_old_names <- colnames(select(games_clean, abstract_strategy:zombies))
 cat_new_names <- paste0('cat_', cat_old_names)
-setnames(games, old = cat_old_names, new = cat_new_names)
-head(games)
-head(select(games, cat_abstract_strategy:cat_zombies))
+setnames(games_clean, old = cat_old_names, new = cat_new_names)
+head(games_clean)
+head(select(games_clean, cat_abstract_strategy:cat_zombies))
 ```
 ### Total Categories
 ```{r}
-games <- games %>%
-  mutate(cat_total = rowSums(select(games, cat_abstract_strategy:cat_zombies)))
-summary(games$cat_total)
+games_clean <- games_clean %>%
+  mutate(cat_total = rowSums(select(games_clean, cat_abstract_strategy:cat_zombies)))
+summary(games_clean$cat_total)
 ```
 
 ### Check Nones
 ```{r}
-sum(games$cat_none)
-cat_miss <- games[games$cat_none == 1, ]
+sum(games_clean$cat_none)
+cat_miss <- games_clean[games_clean$cat_none == 1, ]
 ```
 ### Check Both Missing
 ```{r}
@@ -253,24 +223,24 @@ missing_all <- cat_miss[cat_miss$mech_none == 1, ]
 
 ### Review Category Stats
 ```{r}
-describe(select(games, cat_abstract_strategy:cat_zombies))
+describe(select(games_clean, cat_abstract_strategy:cat_zombies))
 ```
 
 
 ### Check Some Stats!
 ```{r}
-filter(games, grepl("harbour", ignore.case = TRUE, names))
-filter(games, grepl("pandemic", ignore.case = TRUE, names))
-filter(games, grepl("cthulhu", ignore.case = TRUE, names))
-filter(games, grepl("tiny epic", ignore.case = TRUE, names))
-game_expansions <- games %>%
+filter(games_clean, grepl("harbour", ignore.case = TRUE, names))
+filter(games_clean, grepl("pandemic", ignore.case = TRUE, names))
+filter(games_clean, grepl("cthulhu", ignore.case = TRUE, names))
+filter(games_clean, grepl("tiny epic", ignore.case = TRUE, names))
+game_expansions <- games_clean %>%
   filter(cat_expansion_for_base_game == 1)
 game_expansions
 ```
 
 ### Times
 ```{r}
-describe(games$avg_time)
+describe(games_clean$avg_time)
 ```
 
 ### Num Players
@@ -278,7 +248,7 @@ describe(games$avg_time)
 
 ## Quick LM
 ```{r error=TRUE}
-lm_sub <- games %>%
+lm_sub <- games_clean %>%
   select(min_players:cat_total, -num_votes, -image_url, -mechanic, -category, -designer, -owned, -avg_rating, -mech_none, -cat_none)
 lm1 <- lm(geek_rating ~ ., data = lm_sub)
 summary(lm1)
