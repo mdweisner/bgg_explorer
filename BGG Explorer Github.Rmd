@@ -16,7 +16,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## To Do:
 + Talk to Ben about project (OK!)
-+ Figure out what to do with data cleaning
++ Figure out what to do with data cleaning (DONE)
++ K Means: Do a plot and a tree visualization
++ + Also ask Ben about the clustering?
++ Run: lasso / ridge, randomforest, BART (Almost DONE)
++ + Pick best one
++ + Show actual examples of the best one
++ + Demonstrate made up examples (ex game with mechanics x and categories y and weight blah blah)
 
 ## Libraries
 ```{r}
@@ -55,7 +61,7 @@ Look at Outliers if necessary
 ## Cleaning
 
 ### Drop Non-games
-```{r}
+```{r echo=FALSE}
 bad_ids <- c("18291", "21804", "23953", "125048", "5985", "10904") # either nonspecific games like 'traditional card games' or non-games in the system
 ```
 
@@ -70,7 +76,7 @@ bad_ids <- c("18291", "21804", "23953", "125048", "5985", "10904") # either nons
 ### Mechanics
 https://boardgamegeek.com/browse/boardgamemechanic
 Create Dummy Variables for each mechanic
-```{r}
+```{r echo=FALSE}
 mech_raw2 <- unlist(strsplit(games_clean$mechanic, ", "))
 mech_unique <- unique(mech_raw2)
 mech_terms <- sort(mech_unique)
@@ -148,26 +154,7 @@ describe(select(games_clean, mech_acting:mech_worker_placement))
 Do the same thing with categories
 https://boardgamegeek.com/browse/boardgamecategory
 
-_Old way (for doublechecking)_
-```{r}
-# cat_raw <- c("Abstract Strategy", "Action / Dexterity", "Adventure", "Age of Reason", "American Civil War", 
-#              "American Indian Wars", "American Revolutionary War", "American West", "Ancient", "Animals",
-#              "Arabian", "Aviation / Flight", "Bluffing", "Book", "Card Game", "Children's Game", "City Building",
-#              "Civil War", "Civilization", "Collectible Components", "Comic Book / Strip", "Deduction", 
-#              "Dice", "Economic", "Educational", "Electronic", "Environmental", "Expansion for Base-game", 
-#              "Exploration", "Fan Expansion", "Fantasy", "Farming", "Fighting", "Game System", "Horror", 
-#              "Humor", "Industry / Manufacturing", "Korean War", "Mafia", "Math", "Mature / Adult","Maze",
-#              "Medical", "Medieval", "Memory", "Miniatures", "Modern Warfare", "Movies / TV / Radio theme",
-#              "Murder/Mystery", "Music", "Mythology", "Napoleonic", "Nautical", "Negotiation", "Novel-based",
-#              "Number", "Party Game", "Pike and Shot", "Pirates", "Political", "Post-Napoleonic", "Prehistoric",
-#              "Print & Play", "Puzzle", "Racing", "Real-time", "Religious", "Renaissance", "Science Fiction",
-#              "Space Exploration", "Spies/Secret Agents", "Sports", "Territory Building", "Trains", "Transportation",
-#              "Travel", "Trivia", "Video Game Theme", "Vietnam War", "Wargame", "Word Game", "World War I", 
-#              "World War II", "Zombies")
-```
-
-_New Way_
-```{r}
+```{r echo=FALSE}
 cat_raw2 <- unlist(strsplit(games_clean$category, ", "))
 cat_unique <- unique(cat_raw2)
 cat_terms <- sort(cat_unique)
@@ -210,6 +197,10 @@ games_clean <- games_clean %>%
   mutate(cat_total = rowSums(select(games_clean, cat_abstract_strategy:cat_zombies)))
 summary(games_clean$cat_total)
 ```
+### Save games_clean
+```{r}
+write_csv(games_clean, "games_clean.csv")
+```
 
 ### Check Nones
 ```{r}
@@ -233,6 +224,7 @@ filter(games_clean, grepl("harbour", ignore.case = TRUE, names))
 filter(games_clean, grepl("pandemic", ignore.case = TRUE, names))
 filter(games_clean, grepl("cthulhu", ignore.case = TRUE, names))
 filter(games_clean, grepl("tiny epic", ignore.case = TRUE, names))
+filter(games_clean, grepl("catan", ignore.case = TRUE, names))
 game_expansions <- games_clean %>%
   filter(cat_expansion_for_base_game == 1)
 game_expansions
@@ -249,7 +241,7 @@ describe(games_clean$avg_time)
 ## Quick LM
 ```{r error=TRUE}
 lm_sub <- games_clean %>%
-  select(min_players:cat_total, -num_votes, -image_url, -mechanic, -category, -designer, -owned, -avg_rating, -mech_none, -cat_none)
+  select(min_players:cat_total, -num_votes, -image_url, -mechanic, -category, -designer, -owned, -avg_rating, -mech_total, -cat_total)
 lm1 <- lm(geek_rating ~ ., data = lm_sub)
 summary(lm1)
 ```
@@ -258,9 +250,191 @@ summary(lm1)
 ## Plotting
 ```{r}
 gg <- ggplot(data = games_clean, aes(x = geek_rating, y = owned, col = avg_time))
-gg <- gg + geom_point()
+gg <- gg + geom_point(alpha = 0.6)
 gg <- gg + geom_smooth()
 gg
 
 ```
+
+## PCA Analysis
+```{r}
+numeric <- map_lgl(games_clean, is.numeric)
+games_numeric <- games_clean[, numeric]
+pr_games <- prcomp(games_numeric, scale = TRUE)
+```
+
+
+#So we don't explain a lot of the variance very quickly
+```{r}
+pr_var <- pr_games$sdev ^ 2
+pve <- pr_var / sum(pr_var)
+
+cumsum(pve)
+```
+
+```{r error=TRUE}
+PCA_games <- PCAproj(games_numeric, scale = sd)
+
+par(mar = c(5,4,3,3) + .1, las = 1, cex = 0.2)
+biplot(PCA_games, scale = 0, ylim = c(-5, 9))
+```
+#K means clustering (do we want consistency or no?)
+```{r}
+set.seed(123)
+games_numeric_2 <- select(games_numeric, -c("game_id", "rank", "avg_rating", "num_votes", "min_time", "max_time"))
+km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
+with(games_numeric_2, plot(geek_rating, owned, col = km_games$cluster, pch = 20, main = "Stuff"))
+```
+## Lookup function
+```{r}
+lookup <- function(gamenamepart){
+  games_clean$names[str_detect(games_clean$names, gamenamepart)]
+}
+lookup("Pandemic")
+```
+
+## basic recommendations
+```{r}
+recommendation <- function(gamename = "Gloomhaven"){
+  detect <- str_detect(games_clean$names, paste0("^", gamename, "$"))
+  detected <- which(detect)[1]
+  cluster <- km_games$cluster[detected]
+  head(games_clean$names[which(km_const$cluster == cluster)])
+}
+```
+
+#Score from 1 to 5
+```{r}
+recommendation2 <- function(gamename = "Gloomhaven"){
+Score <- as.data.frame(cbind(games_clean$names, "score" = 0))
+Score$score <- as.numeric(Score$score) - 1
+detect <- str_detect(games_clean$names, paste0("^", gamename, "$"))
+detected <- which(detect)[1]
+Score[detected, ] <- NA
+set.seed(12345)
+  for (i in 1:5){
+      km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
+      cluster <- km_games$cluster[detected]
+      Score$score[which(km_games$cluster == cluster)] <- Score$score[which(km_games$cluster == cluster)] + 1
+    }
+  head(arrange(Score, desc(score)), n = 10)
+}
+```
+#Doesn't repeat
+```{r}
+recommendation2("Pandemic")
+```
+
+```{r}
+Score <- as.data.frame(cbind(games_clean$names, "score" = 0))
+Score$score <- as.numeric(Score$score) - 1
+detect <- str_detect(games_clean$names, "Pandemic")
+detected <- which(detect)[1]
+Score <- Score[-detected,]
+    for (i in 1:5){
+      km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
+      cluster <- km_games$cluster[detected]
+      Score$score[which(km_games$cluster == cluster)] <- Score$score[which(km_games$cluster == cluster)] + 1
+    }
+  head(arrange(Score, desc(score)), n = 20)
+```
+
+
+## Supervised Learning
+
+### Subset
+Drop unimportant variables
+```{r}
+games_clean_sub <- games_clean %>%
+  select(min_players:cat_total, -num_votes, -image_url, -mechanic, -category, -designer, -owned, -avg_rating, -mech_total, -cat_total)
+lm1 <- lm(geek_rating ~ ., data = games_clean_sub)
+summary(lm1)
+```
+
+### Training
+```{r}
+library(caret)
+
+in_train <- createDataPartition(y = games_clean_sub$geek_rating,
+                                p = 3 / 4, list = FALSE)
+str(in_train)
+games_clean_training <- games_clean_sub[ in_train, ]
+games_clean_testing  <- games_clean_sub[-in_train, ]
+```
+
+### OLS
+
+Step 1: Solve an optimization problem using the pre-processed training data
+```{r}
+fit <- train(geek_rating ~ ., data = games_clean_training, method = "lm", 
+             preProcess = c("center", "scale"))
+fit
+```
+
+Step 2: Predict in the testing data
+```{r}
+y_hat_lm <- predict(fit, newdata = games_clean_testing)
+```
+
+Step 3: Evaluate
+```{r}
+defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = y_hat))
+```
+
+So our testing data using the OLS model actually had as lightly better RMSE score than in the training data.
+
+
+### Lasso
+Initialize Grid
+```{r}
+set.seed(12345)
+lassoGrid <- expand.grid(.lambda = seq(.05, 1, length = 10),
+                        .fraction = seq(.05, 1, length = 10))
+# head(lassoGrid, n = 20)
+```
+
+```{r cache=TRUE}
+set.seed(12345)
+lasso <- train(geek_rating ~ ., data = games_clean_training, method = "enet", 
+               trControl = ctrl, tuneGrid = lassoGrid)
+```
+
+Prediction
+```{r}
+y_hat_lasso <- predict(lasso, newdata = games_clean_testing)
+# mean( (games_clean_testing$geek_rating - y_hat) ^ 2 )
+defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = y_hat_lasso))
+```
+Lasso penalized prediction is just MARGINALLY better than the OLS model.
+
+### Random Forest
+Detect Parallel Cores
+```{r}
+library(doMC)
+registerDoMC(parallel::detectCores())
+```
+
+```{r cache=TRUE}
+# library(randomForest)
+rf_grid <- data.frame(.mtry = 2:(ncol(games_clean_training) - 1L))
+rf_out <- train(geek_rating ~ ., data = games_clean_training, method = "rf",
+             trControl = ctrl, tuneGrid = rf_grid, 
+             ntrees = 1000, importance = TRUE)
+varImp(rf_out)
+y_hat_rf <- predict(out, newdata = games_clean_testing)
+defaultSummary(data.frame(obs = games_clean_testing$geek_rating, 
+                          pred = exp(y_hat_rf)))
+```
+
+### BART
+```{r}
+library(BART)
+X_train <- model.matrix(geek_rating ~ ., data = games_clean_training)
+X_test <- model.matrix(geek_rating ~ ., data = games_clean_testing)
+out <- mc.wbart(X_train, y = games_clean_training$geek_rating, X_test,
+                mc.cores = parallel::detectCores())
+defaultSummary(data.frame(obs = games_clean_testing$geek_rating,
+                          pred = exp(out$yhat.test.mean)))
+```
+
 
