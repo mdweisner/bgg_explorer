@@ -23,6 +23,7 @@ knitr::opts_chunk$set(echo = TRUE)
 + + Pick best one
 + + Show actual examples of the best one
 + + Demonstrate made up examples (ex game with mechanics x and categories y and weight blah blah)
++ Document sections and give some analysis
 
 ## Libraries
 ```{r}
@@ -291,7 +292,7 @@ with(games_numeric_2, plot(geek_rating, owned, col = km_games$cluster, pch = 20,
 lookup <- function(gamenamepart){
   games_clean$names[str_detect(games_clean$names, fixed(gamenamepart, ignore_case = T))]
 }
-lookup("Pandemic")
+lookup("tiny epic")
 ```
 
 ## basic recommendations
@@ -311,7 +312,7 @@ Score <- as.data.frame(cbind(games_clean$names, "score" = 0))
 Score$score <- as.numeric(Score$score) - 1
 detect <- str_detect(games_clean$names, paste0("^", gamename, "$"))
 detected <- which(detect)[1]
-Score[detected, ] <- NA
+Score[detected, ] <- NA # stops it from recommending itself
 set.seed(12345)
   for (i in 1:5){
       km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
@@ -323,7 +324,7 @@ set.seed(12345)
 ```
 #Doesn't repeat
 ```{r}
-recommendation2("Pandemic")
+recommendation2("Betrayal")
 ```
 
 ```{r}
