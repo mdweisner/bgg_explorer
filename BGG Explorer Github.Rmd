@@ -256,10 +256,13 @@ gg <- gg + geom_smooth()
 gg
 
 ```
+## Quick Load of Cleaned Data
+```{r}
+games_clean <- read_csv("~/bgg_explorer/games_clean.csv") # added to start here without rerunning everything
+```
 
 ## PCA Analysis
 ```{r}
-games_clean <- read_csv("~/bgg_explorer/games_clean.csv") # added to start here without rerunning everything
 numeric <- map_lgl(games_clean, is.numeric)
 games_numeric <- games_clean[, numeric]
 pr_games <- prcomp(games_numeric, scale = TRUE)
