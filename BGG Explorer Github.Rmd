@@ -289,7 +289,7 @@ with(games_numeric_2, plot(geek_rating, owned, col = km_games$cluster, pch = 20,
 ## Lookup function
 ```{r}
 lookup <- function(gamenamepart){
-  games_clean$names[str_detect(games_clean$names, gamenamepart)]
+  games_clean$names[str_detect(games_clean$names, fixed(gamenamepart, ignore_case = T))]
 }
 lookup("Pandemic")
 ```
