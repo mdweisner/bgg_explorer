@@ -258,6 +258,7 @@ gg
 
 ## PCA Analysis
 ```{r}
+games_clean <- read_csv("~/bgg_explorer/games_clean.csv") # added to start here without rerunning everything
 numeric <- map_lgl(games_clean, is.numeric)
 games_numeric <- games_clean[, numeric]
 pr_games <- prcomp(games_numeric, scale = TRUE)
@@ -280,7 +281,7 @@ biplot(PCA_games, scale = 0, ylim = c(-5, 9))
 ```
 #K means clustering (do we want consistency or no?)
 ```{r}
-set.seed(123)
+set.seed(12345)
 games_numeric_2 <- select(games_numeric, -c("game_id", "rank", "avg_rating", "num_votes", "min_time", "max_time"))
 km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
 with(games_numeric_2, plot(geek_rating, owned, col = km_games$cluster, pch = 20, main = "Stuff"))
