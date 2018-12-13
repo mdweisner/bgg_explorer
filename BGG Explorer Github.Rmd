@@ -11,8 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Goals
 + K means cluster to recommendation?
-+ Lasso penalized prediction of score
-+ PCA Vector recommendation?
++ Lasso penalized prediction of score and other methods
 
 ## To Do:
 + Talk to Ben about project (OK!)
@@ -24,6 +23,14 @@ knitr::opts_chunk$set(echo = TRUE)
 + + Show actual examples of the best one
 + + Demonstrate made up examples (ex game with mechanics x and categories y and weight blah blah)
 + Document sections and give some analysis
++ Do more summary statistics and graphs
++ + histograms
++ + missing data
++ + plots
++ Explain a good meopdel metric (ROC, accuracy, precision, and recall or RMSE in our case)
++ Show a baseline model (lm())
++ Modeling process?
++ Carefully design the scope of the project - debugging will take longer than expected
 
 ## Libraries
 ```{r}
@@ -192,6 +199,17 @@ setnames(games_clean, old = cat_old_names, new = cat_new_names)
 head(games_clean)
 head(select(games_clean, cat_abstract_strategy:cat_zombies))
 ```
+
+Summary
+```{r}
+describe(select(games_clean, cat_abstract_strategy:cat_zombies))
+```
+Drop low vars?
+```{r}
+sum(games_clean$cat_american_revolutionary_war)
+```
+
+
 ### Total Categories
 ```{r}
 games_clean <- games_clean %>%
@@ -216,6 +234,11 @@ missing_all <- cat_miss[cat_miss$mech_none == 1, ]
 ### Review Category Stats
 ```{r}
 describe(select(games_clean, cat_abstract_strategy:cat_zombies))
+```
+
+### Review Mechanic Stats
+```{r}
+describe(select(games_clean, mech_acting:mech_worker_placement))
 ```
 
 
@@ -283,7 +306,7 @@ PCA_games <- PCAproj(games_numeric, scale = sd)
 par(mar = c(5,4,3,3) + .1, las = 1, cex = 0.2)
 biplot(PCA_games, scale = 0, ylim = c(-5, 9))
 ```
-#K means clustering (do we want consistency or no?)
+# K means clustering (do we want consistency or no?)
 ```{r}
 set.seed(12345)
 games_numeric_2 <- select(games_numeric, -c("game_id", "rank", "avg_rating", "num_votes", "min_time", "max_time"))
@@ -298,56 +321,40 @@ lookup <- function(gamenamepart){
 lookup("tiny epic")
 ```
 
-## basic recommendations
+## Basic Recommendations
 ```{r}
 recommendation <- function(gamename = "Gloomhaven"){
-  detect <- str_detect(games_clean$names, paste0("^", gamename, "$"))
-  detected <- which(detect)[1]
-  cluster <- km_games$cluster[detected]
-  head(games_clean$names[which(km_const$cluster == cluster)])
+  detect <- str_which(games_clean$names, paste0("^", gamename, "$"))
+  cluster <- km_games$cluster[detect]
+  head(games_clean$names[which(km_games$cluster == cluster)])
 }
 ```
 
-#Score from 1 to 5
+## Score from 1 to 5
 ```{r}
-recommendation2 <- function(gamename = "Gloomhaven"){
+recommendation2 <- function(gamename = "Gloomhaven", number = 5){
 Score <- as.data.frame(cbind(games_clean$names, "score" = 0))
 Score$score <- as.numeric(Score$score) - 1
-detect <- str_detect(games_clean$names, paste0("^", gamename, "$"))
-detected <- which(detect)[1]
-Score[detected, ] <- NA # stops it from recommending itself
+detect <- str_which(games_clean$names, paste0("^", gamename, "$"))[1]
+Score[detect, ] <- NA # stops it from recommending itself
 set.seed(12345)
   for (i in 1:5){
       km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
-      cluster <- km_games$cluster[detected]
+      cluster <- km_games$cluster[detect]
       Score$score[which(km_games$cluster == cluster)] <- Score$score[which(km_games$cluster == cluster)] + 1
     }
-  head(arrange(Score, desc(score)), n = 10)
+  head(arrange(Score, desc(score)), number)
 }
 ```
-#Doesn't repeat
-```{r}
-recommendation2("Betrayal")
+
+### Test of Recommendation
+```{r error=TRUE}
+recommendation2("Betrayal at House on the Hill")
 ```
 
-```{r}
-Score <- as.data.frame(cbind(games_clean$names, "score" = 0))
-Score$score <- as.numeric(Score$score) - 1
-detect <- str_detect(games_clean$names, "Pandemic")
-detected <- which(detect)[1]
-Score <- Score[-detected,]
-    for (i in 1:5){
-      km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
-      cluster <- km_games$cluster[detected]
-      Score$score[which(km_games$cluster == cluster)] <- Score$score[which(km_games$cluster == cluster)] + 1
-    }
-  head(arrange(Score, desc(score)), n = 20)
-```
+# Supervised Learning
 
-
-## Supervised Learning
-
-### Subset
+## Subset
 Drop unimportant variables
 ```{r}
 games_clean_sub <- games_clean %>%
@@ -356,10 +363,10 @@ lm1 <- lm(geek_rating ~ ., data = games_clean_sub)
 summary(lm1)
 ```
 
-### Training
+## Training
 ```{r}
 library(caret)
-
+ctrl <- trainControl(method = "cv", number = 10)
 in_train <- createDataPartition(y = games_clean_sub$geek_rating,
                                 p = 3 / 4, list = FALSE)
 str(in_train)
@@ -367,10 +374,11 @@ games_clean_training <- games_clean_sub[ in_train, ]
 games_clean_testing  <- games_clean_sub[-in_train, ]
 ```
 
-### OLS
+## OLS
 
 Step 1: Solve an optimization problem using the pre-processed training data
 ```{r}
+set.seed(12345)
 fit <- train(geek_rating ~ ., data = games_clean_training, method = "lm", 
              preProcess = c("center", "scale"))
 fit
@@ -378,18 +386,19 @@ fit
 
 Step 2: Predict in the testing data
 ```{r}
+set.seed(12345)
 y_hat_lm <- predict(fit, newdata = games_clean_testing)
 ```
 
 Step 3: Evaluate
 ```{r}
-defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = y_hat))
+defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = y_hat_lm))
 ```
 
 So our testing data using the OLS model actually had as lightly better RMSE score than in the training data.
 
 
-### Lasso
+## Lasso
 Initialize Grid
 ```{r}
 set.seed(12345)
@@ -412,7 +421,7 @@ defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = y_hat_la
 ```
 Lasso penalized prediction is just MARGINALLY better than the OLS model.
 
-### Random Forest
+## Random Forest
 Detect Parallel Cores
 ```{r}
 library(doMC)
@@ -421,19 +430,31 @@ registerDoMC(parallel::detectCores())
 
 ```{r cache=TRUE}
 # library(randomForest)
-rf_grid <- data.frame(.mtry = 2:(ncol(games_clean_training) - 1L))
+# rm(cat_miss, game_expansions, games, games2, games_numeric, games_numeric_2, gg, km_games, lm_sub, lm1, mech_miss, missing_all, outliers, pr_games)
+#games_clean_training_sub <- head(games_clean_training, n = 120)
+#games_clean_testing_sub <- head(games_clean_testing, n = 30)
+# rf_grid <- data.frame(.mtry = 2:(ncol(games_clean_training) - 1L)) # across all data
+set.seed(12345)
+rf_grid <- data.frame(.mtry = 2:30L) # I had to reduce this to get it to run, default is 2/3, maybe change knot size? 
 rf_out <- train(geek_rating ~ ., data = games_clean_training, method = "rf",
              trControl = ctrl, tuneGrid = rf_grid, 
-             ntrees = 1000, importance = TRUE)
+             ntrees = 100, importance = TRUE)
+getTree(rf_out)
 varImp(rf_out)
-y_hat_rf <- predict(out, newdata = games_clean_testing)
+varImpPlot(rf_out)
+```
+Compare
+```{r cache=TRUE}
+y_hat_rf <- predict(rf_out, newdata = games_clean_testing)
 defaultSummary(data.frame(obs = games_clean_testing$geek_rating, 
                           pred = exp(y_hat_rf)))
 ```
 
-### BART
+
+## BART
 ```{r}
 library(BART)
+set.seed(12345)
 X_train <- model.matrix(geek_rating ~ ., data = games_clean_training)
 X_test <- model.matrix(geek_rating ~ ., data = games_clean_testing)
 out <- mc.wbart(X_train, y = games_clean_training$geek_rating, X_test,
