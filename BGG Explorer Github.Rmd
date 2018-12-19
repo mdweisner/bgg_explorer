@@ -354,6 +354,12 @@ recommendation2("Betrayal at House on the Hill")
 
 # Supervised Learning
 
+## Multiple Cores
+```{r}
+library(doMC)
+registerDoMC(parallel::detectCores())
+```
+
 ## Subset
 Drop unimportant variables
 ```{r}
@@ -366,6 +372,7 @@ summary(lm1)
 ## Training
 ```{r}
 library(caret)
+set.seed(12345)
 ctrl <- trainControl(method = "cv", number = 10)
 in_train <- createDataPartition(y = games_clean_sub$geek_rating,
                                 p = 3 / 4, list = FALSE)
@@ -379,15 +386,14 @@ games_clean_testing  <- games_clean_sub[-in_train, ]
 Step 1: Solve an optimization problem using the pre-processed training data
 ```{r}
 set.seed(12345)
-fit <- train(geek_rating ~ ., data = games_clean_training, method = "lm", 
-             preProcess = c("center", "scale"))
-fit
+fit_lm <- train(geek_rating ~ ., data = games_clean_training, method = "lm")
+fit_lm
 ```
 
 Step 2: Predict in the testing data
 ```{r}
 set.seed(12345)
-y_hat_lm <- predict(fit, newdata = games_clean_testing)
+y_hat_lm <- predict(fit_lm, newdata = games_clean_testing)
 ```
 
 Step 3: Evaluate
@@ -421,38 +427,44 @@ defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = y_hat_la
 ```
 Lasso penalized prediction is just MARGINALLY better than the OLS model.
 
-## Random Forest
-Detect Parallel Cores
-```{r}
-library(doMC)
-registerDoMC(parallel::detectCores())
+## Flam
+The FLAM model wouldn't complete on a full dataset so I created a sample subset.
+```{r, cache = true}
+library(flam)
+set.seed(12345)
+games_clean_training_sub <- games_clean_training[sample(1:nrow(games_clean_training), 1000, replace=FALSE), ]
+X <- model.matrix(geek_rating ~ ., data = games_clean_training_sub)
+fit_flam <- flamCV(x = X, y = games_clean_training_sub$geek_rating)
+yhat_flam <- predict(fit_flam$flam.out,
+                     new.x = model.matrix(geek_rating ~ ., data = games_clean_testing),
+                     lambda = fit_flam$lambda.cv, alpha = fit_flam$alpha)
+defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = yhat_flam))
 ```
+
+
+## Random Forest
 
 ```{r cache=TRUE}
 # library(randomForest)
-# rm(cat_miss, game_expansions, games, games2, games_numeric, games_numeric_2, gg, km_games, lm_sub, lm1, mech_miss, missing_all, outliers, pr_games)
-#games_clean_training_sub <- head(games_clean_training, n = 120)
-#games_clean_testing_sub <- head(games_clean_testing, n = 30)
 # rf_grid <- data.frame(.mtry = 2:(ncol(games_clean_training) - 1L)) # across all data
 set.seed(12345)
-rf_grid <- data.frame(.mtry = 2:30L) # I had to reduce this to get it to run, default is 2/3, maybe change knot size? 
+ctrl <- trainControl(method = "cv", number = 3)
+rf_grid <- data.frame(.mtry = 2:(ncol(games_clean_training) - 1L)) # I had to reduce this to get it to run, default is 2/3, maybe change knot size? 
 rf_out <- train(geek_rating ~ ., data = games_clean_training, method = "rf",
              trControl = ctrl, tuneGrid = rf_grid, 
-             ntrees = 100, importance = TRUE)
-getTree(rf_out)
+             ntrees = 25, importance = TRUE) # I tried cutting fewer trees
 varImp(rf_out)
-varImpPlot(rf_out)
 ```
 Compare
-```{r cache=TRUE}
+```{r, cache=TRUE}
 y_hat_rf <- predict(rf_out, newdata = games_clean_testing)
 defaultSummary(data.frame(obs = games_clean_testing$geek_rating, 
                           pred = exp(y_hat_rf)))
 ```
 
 
-## BART
-```{r}
+## BARTs
+```{r cache=TRUE}
 library(BART)
 set.seed(12345)
 X_train <- model.matrix(geek_rating ~ ., data = games_clean_training)
@@ -461,6 +473,23 @@ out <- mc.wbart(X_train, y = games_clean_training$geek_rating, X_test,
                 mc.cores = parallel::detectCores())
 defaultSummary(data.frame(obs = games_clean_testing$geek_rating,
                           pred = exp(out$yhat.test.mean)))
+```
+
+## Neural Net
+```{r cache = true}
+library(e1071)
+set.seed(12345)
+nnet_grid <- expand.grid(.decay = c(0, 0.01, 0.1),
+                        .size = c(1:10))
+
+ctrl <- trainControl(method = "cv", number = 10)
+
+out_nn <- train(geek_rating ~ ., data = games_clean_training, method = "nnet",
+             trControl = ctrl, tuneGrid = nnet_grid,
+             trace = FALSE)
+defaultSummary(data.frame(obs = games_clean_testing$geek_rating,
+                          pred = predict(out_nn, newdata = games_clean_testing)))
+
 ```
 
 
