@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE, error=TRUE)
 ```
 
 ## Goals
@@ -46,50 +46,59 @@ library(ggplot2)
 library(psych)
 ```
 ## BGG Data
+The dataset, bgg_db_1806.csv, is a dataset scraped in June of 2018 from the Boardgame Geek (BGG) website, a repository of boardgames that categorizes and ranks games in conjunction with curating information about the games' basic features. The data was hosted at kaggle.com by user mrpantherson at https://www.kaggle.com/mrpantherson/board-game-data.
+Below we can see the basic variables of the dataset:
++ rank: the rank of each boardgame on the Boardgame Geek website. 
++ bgg_url: the game's specific URL
++ game_ID: the unique ID used by Boardgamegeek.com
++ names: the name of the game
++ min_players: the minimum players required to play the game
++ max_players: the maximum players that can play the game
++ avg_time: the average time to play the game in minutes
++ min_time: the minimum time to play the game in minutes
++ max_time: the maximum time to play the game in minutes
++ year: the year the game was released
++ avg_rating: the average user rating score
++ geek_rating: the rating ascribed by the curators of boardgamegeek.com, and the basis of the rank
++ num_votes: the number of user votes on a game
++ image_url: the url address of an image of the boardgame
++ age: the minimum age to play the game
++ mechanic: a list of mechanics the game utilizes as curated by boardgamegeek.com
++ owned: how many users claim to own the game
++ category: a list of themes the game utilizes as curated by boardgamegeek.com
++ designer: the name of the designer
++ weight: the user scored complexity of a game to learn and play
 ```{r}
 games <- read_csv(unzip("~/bgg_explorer/bgg_db_1806.csv.zip"))
-games2 <- games # just backup in case we need to go back to original values
+describe(games)
 ```
 
-## Quick Cleaning
-I used this to quickly cut out some outliers, but they need closer examination!
-A few things were decided here. 
-+ One Night Ultimate Werewolf has the highest specified player count of 75. Some games list 99, seemingly to suggest unlimited players but this is not true and completely impractical. While they could be recoded, as there's no actual specified number of people it makes the data skewed and is easier to drop. 
-+ Similarly, games with 0 players are useless as a game needs people.
-+ There are two boardgames that are 21+ because they involve alcohol. One game has a suggested age of 42 which makes it somewhat useless for the context.
-+ We will focus on "modern" games, choosing 1970 semi-arbitrarily. The 1980s and 1990s are considered the modern renaissance, so it seemed pertinent to look at games leading up to it. This is mostly to weed out ancient games, like go and chess that go back thousands of years and skew the sample.
-+ Lastly, games with no category and mechanic are fundamentally useless, so they will be ignored here.
+## Data Cleaning
+
+### Dropping Outliers
+We decided to cut some extreme outliers for the following reasons:
++ Of known games, One Night Ultimate Werewolf has the highest specified player count of 75. Some games list 99 players, suggesting an unlimited number of players. But this is simply not true and impractical for this exercise. While they could be recoded as 75 or greater, since there is no actual specification it makes more sense to drop the variables which could skew the results.
++ Similarly, games with 0 players are equally useless, as games need people.
++ There are two boardgames that have an age restriction of 21+ due to alcohol. One game suggested an age of 42, which made it useless for the analysis.
++ Some games were developed hundreds or even thousands of years ago. These are not highly comparable to more modern games. To focus on these, we will focus on games that have occurred from 1970 onward, slightly before the so-called "boardgame renaissance," the resurgence of interest in strategic and complex boardgames that occurred within the last 30 years. 1970 was chosen somewhat arbitrarily, but seemed safe as it includes the vast majority of games in the dataset.
++ There was also one NA row we dropped.
++ Games with time over 1000 minutes were dropped, as these games seemed to imply the idea that you could play one "campaign" over that time, but it's not a reasonable amount of time anyone could sit and play a boardgame. Similarly games with 0 time were dropped.
++ Lastly, games with no category and mechanic were useless for this exercise, as they do, in fact, have mechanics. They were ignored.
+
 ```{r}
-games <- drop_na(games) # there's one NA column, annoyingly
-outliers <- subset(games, min_players > 75 | max_players > 75 | max_players > 75 | min_players == 0 | max_players == 0 | weight == 0 | avg_time > 1000 | min_time > 1000 | max_time > 1000 | avg_time == 0 | min_time == 0 | max_time == 0 | age > 21 | year < 1970 | mechanic == "none" | category == "none")
-games_clean <- subset(games, !(game_id %in% outliers$game_id))
-#head(games_clean)
+games_clean <- games
+games_clean <- drop_na(games)
+outliers <- subset(games, min_players > 75 | max_players > 75 | min_players == 0 |
+                     max_players == 0 | weight == 0 | avg_time > 1000 | min_time > 1000 | max_time > 1000 | 
+                     avg_time == 0 | min_time == 0 | max_time == 0 | age > 21 | year < 1970 | mechanic == "none" | category == "none")
+games_clean <- subset(games_clean, !(game_id %in% outliers$game_id))
 summary(games_clean)
-```
-
-Look at Outliers if necessary
-```{r}
-#View(outliers)
-```
-
-## Cleaning
-
-### Drop Non-games
-```{r echo=FALSE}
-bad_ids <- c("18291", "21804", "23953", "125048", "5985", "10904") # either nonspecific games like 'traditional card games' or non-games in the system
-```
-
-
-### Incorrect Values
-```{r}
-# Years
-# 108018 (riichi mahjong) is credited as being adapted in 1924
 ```
 
 
 ### Mechanics
-https://boardgamegeek.com/browse/boardgamemechanic
-Create Dummy Variables for each mechanic
+Boardgamegeek.com has a set of generic boardgame mechanics, which it applies to relevant games. The full list can be found here: https://boardgamegeek.com/browse/boardgamemechanic. The dataset put all of these into a single string, which we broke up into individual dummy variables below. Mechanics included physical things like rolling dice or managing a hand of cards, for instance.
+### Create Dummy Variables for each mechanic
 ```{r echo=FALSE}
 mech_raw2 <- unlist(strsplit(games_clean$mechanic, ", "))
 mech_unique <- unique(mech_raw2)
@@ -103,29 +112,12 @@ for(j in 1:length(mech_terms)){
   for(i in 1:length(games_clean$mechanic)){
     games_clean[i, as.character(mech_terms[j])] <- as.numeric(grepl(mech_terms[j], games_clean$mechanic[i]))
   }
-  cat("now at", round(j * 1.96), "% ... ")
+  # cat("now at", round(j * 1.96), "% ... ") # this was to get a sense of progress
 }
-
-
 ```
 
 ### Rename Mechanics
-
-Test Rename
-```{r}
-### testing first
-# colnames(games)
-# testnames <- games[1:5, ]
-# colnames(testnames) <- tolower(colnames(testnames))
-# colnames(testnames) <- gsub("co-op", "coop", colnames(testnames)) # odd one out with dash
-# colnames(testnames) <- gsub("\\/", " ", colnames(testnames))
-# colnames(testnames) <- gsub("-", " ", colnames(testnames))
-# colnames(testnames) <- gsub(" and ", " ", colnames(testnames))
-# colnames(testnames) <- gsub("  ", " ", colnames(testnames))
-# colnames(testnames) <- gsub("  ", " ", colnames(testnames))
-# colnames(testnames) <- gsub(" ", "_", colnames(testnames))
-```
-
+We renamed the mechanics columns for ease of use.
 ```{r}
 library(data.table)
 colnames(games_clean) <- tolower(colnames(games_clean))
@@ -146,12 +138,6 @@ setnames(games_clean, old = mech_old_names, new = mech_new_names)
 head(select(games_clean, mech_acting:mech_worker_placement))
 ```
 
-### Check Nones
-```{r}
-sum(games_clean$mech_none)
-mech_miss <- games_clean[games_clean$mech_none == 1, ]
-# games_clean <- rename(games_clean, no_mech = none )
-```
 ### Total Mechanics
 ```{r}
 games_clean <- games_clean %>%
@@ -165,8 +151,7 @@ describe(select(games_clean, mech_acting:mech_worker_placement))
 ```
 
 ### Categories
-Do the same thing with categories
-https://boardgamegeek.com/browse/boardgamecategory
+Boardgamegeek.com also ascribes category values to games. We similarly broke these categories into dummy variables and renamed them for better use. A full list of categories can be found here: https://boardgamegeek.com/browse/boardgamecategory. Categories were more varied than mechanics. Some were thematic, like a game having a "fantasy" or "war" theme, but also had some mechanical concepts like being a card game.
 
 ```{r echo=FALSE}
 cat_raw2 <- unlist(strsplit(games_clean$category, ", "))
@@ -181,12 +166,11 @@ for(j in 1:length(cat_terms)){
   for(i in 1:length(games_clean$category)){
     games_clean[i, as.character(cat_terms[j])] <- as.numeric(grepl(cat_terms[j], games_clean$category[i]))
   }
-  cat("now at", round(j * 1.19), "% ... ")
+  # cat("now at", round(j * 1.19), "% ... ") # this was used to gauge progress of the function
 }
-
-# head(games_clean)
 ```
 ### Rename Categories
+The categories were similarly named here.
 ```{r}
 colnames(games_clean) <- tolower(colnames(games_clean))
 colnames(games_clean) <- gsub("co-op", "coop", colnames(games_clean)) # odd one out with dash
@@ -206,16 +190,6 @@ head(games_clean)
 head(select(games_clean, cat_abstract_strategy:cat_zombies))
 ```
 
-Summary
-```{r}
-describe(select(games_clean, cat_abstract_strategy:cat_zombies))
-```
-Drop low vars?
-```{r}
-sum(games_clean$cat_american_revolutionary_war)
-```
-
-
 ### Total Categories
 ```{r}
 games_clean <- games_clean %>%
@@ -223,21 +197,13 @@ games_clean <- games_clean %>%
 summary(games_clean$cat_total)
 ```
 ### Save games_clean
+This was purely to save the cleaned dataset for future use.
 ```{r}
 write_csv(games_clean, "games_clean.csv")
 ```
 
-### Check Nones
-```{r}
-sum(games_clean$cat_none)
-cat_miss <- games_clean[games_clean$cat_none == 1, ]
-```
-### Check Both Missing
-```{r}
-missing_all <- cat_miss[cat_miss$mech_none == 1, ]
-```
-
 ### Review Category Stats
+A potential issue was that many game mechanics and categories were basically unused. The amount of predictive power of these would most likely be minimal.
 ```{r}
 describe(select(games_clean, cat_abstract_strategy:cat_zombies))
 ```
@@ -247,37 +213,59 @@ describe(select(games_clean, cat_abstract_strategy:cat_zombies))
 describe(select(games_clean, mech_acting:mech_worker_placement))
 ```
 
-
 ### Check Some Stats!
+Here we looked at a popular game series, the Pandemic series, which are games about stopping a global outbreak of disease. Interestingly the games vary somewhat considerably in terms of players and time.
 ```{r}
-filter(games_clean, grepl("harbour", ignore.case = TRUE, names))
 filter(games_clean, grepl("pandemic", ignore.case = TRUE, names))
-filter(games_clean, grepl("cthulhu", ignore.case = TRUE, names))
-filter(games_clean, grepl("tiny epic", ignore.case = TRUE, names))
-filter(games_clean, grepl("catan", ignore.case = TRUE, names))
-game_expansions <- games_clean %>%
-  filter(cat_expansion_for_base_game == 1)
-# game_expansions
 ```
 
 ### Times
+The games had an average of ~90 minutes to play, but a median of 60 minutes.
 ```{r}
 describe(games_clean$avg_time)
 ```
 
-### Num Players
+## Plotting
+We explored the distributions of some scores.
 
+### Time
 
-## Quick LM
-```{r error=TRUE}
-lm_sub <- games_clean %>%
-  select(min_players:cat_total, -num_votes, -image_url, -mechanic, -category, -designer, -owned, -avg_rating, -mech_total, -cat_total)
-lm1 <- lm(geek_rating ~ ., data = lm_sub)
-summary(lm1)
+```{r}
+gg <- ggplot(data = games_clean, aes(x = min_time)) +
+  geom_histogram(binwidth = 15) +
+  geom_smooth(aes(x = min_time, y = geek_rating*100), size = 1.5) +
+  scale_y_continuous(sec.axis = sec_axis(~./100, name = "Average Geek Rating")) +
+  xlim(0, 450)
+gg
 ```
 
 
-## Plotting
+### Geek Rating by Minimum & Maximum Time
+
+```{r}
+gg <- ggplot(data = games_clean, aes(x = min_time, y = geek_rating, col = max_time, size = weight))
+gg <- gg + geom_jitter(alpha = 0.3)
+gg <- gg + geom_smooth()
+gg
+```
+```{r}
+gg <- ggplot(data = games_clean, aes(x = max_time, y = geek_rating, col = min_time, size = weight))
+gg <- gg + geom_jitter(alpha = 0.3)
+gg <- gg + geom_smooth()
+gg
+```
+
+### Geek Rating by Weight
+```{r}
+gg <- ggplot(data = games_clean, aes(x = weight, y = geek_rating, size = avg_time))
+gg <- gg + geom_jitter(alpha = 0.3)
+gg <- gg + geom_smooth()
+gg
+```
+
+
+
+### Ownership by Geek Rating
 ```{r}
 gg <- ggplot(data = games_clean, aes(x = geek_rating, y = owned, col = avg_time))
 gg <- gg + geom_point(alpha = 0.6)
@@ -290,75 +278,97 @@ gg
 games_clean <- read_csv("~/bgg_explorer/games_clean.csv") # added to start here without rerunning everything
 ```
 
-## PCA Analysis
-```{r}
-numeric <- map_lgl(games_clean, is.numeric)
-games_numeric <- games_clean[, numeric]
-pr_games <- prcomp(games_numeric, scale = TRUE)
-```
+# K means clustering
 
+To investigate our dataset further, we used unsupervised learning in the form of k-means clustering. To get a general sense of our data, we looked at five clusters. Then, with an eye towards making recommendations, we chose 500 centers so that each cluster would have approximately 9 games (4547 observations split among 500 clusters). 
 
-#So we don't explain a lot of the variance very quickly
-```{r}
-pr_var <- pr_games$sdev ^ 2
-pve <- pr_var / sum(pr_var)
+For exploration purposes, I have plotted the same 5 cluster k-means with geek rating on the y axis and three completely different variables (avg_time - average time, mech_dice_rolling - whether dice rolling is a mechanic in the game and weight - complexity of the game).
 
-cumsum(pve)
-```
-
-```{r error=TRUE}
-PCA_games <- PCAproj(games_numeric, scale = sd)
-
-par(mar = c(5,4,3,3) + .1, las = 1, cex = 0.2)
-biplot(PCA_games, scale = 0, ylim = c(-5, 9))
-```
-# K means clustering (do we want consistency or no?)
 ```{r}
 set.seed(12345)
 games_numeric_2 <- select(games_numeric, -c("game_id", "rank", "avg_rating", "num_votes", "min_time", "max_time"))
-km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
-with(games_numeric_2, plot(geek_rating, owned, col = km_games$cluster, pch = 20, main = "Stuff"))
+
+km_games1 <- kmeans(games_numeric_2, centers = 5, nstart = 25)
+with(games_numeric_2, plot(avg_time, geek_rating, col = km_games1$cluster, pch = 20, main = "Geek Rating against Average Playing Time"))
+
+with(games_numeric_2, plot(mech_dice_rolling, geek_rating, col = km_games1$cluster, pch = 20, main = "Geek Rating against Whether Dice Rolling Mechanic is Present"))
+
+with(games_numeric_2, plot(weight, geek_rating, col = km_games1$cluster, pch = 20, main = "Geek Rating against Weight (complexity"))
+
 ```
+This rudimentary clustering gives us a sense that geek rating (which will be our outcome variable of interest later), is an important metric upon which to cluster, since all three plots above are broadly stratified vertically and not horizontally on either of any of the variables picked.
+
+
+```{r, cache = TRUE}
+km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
+with(games_numeric_2, plot(weight, geek_rating, col = km_games$cluster, pch = 20, main = "Geek Rating by Weight with 500 clusters"))
+```
+Unsurprisingly with 500 clusters, no obvious patterns emerge. 
+
+We now use k-means to make a recommendation function. To that end, we have a helper function that looks up parts of games for the user so that they can get the full name with correct cases, which is necessary in the following functions. 
+
 ## Lookup function
 ```{r}
 lookup <- function(gamenamepart){
   games_clean$names[str_detect(games_clean$names, fixed(gamenamepart, ignore_case = T))]
 }
+
+#Example
 lookup("tiny epic")
 ```
+
+The basic recommendation function simply accepts a game name and returns the other games that were in its cluster. The default is "Gloomhaven", the currently top-rated game on Board Game Geek. Different games have different numbers of recommendations based on the size of the cluster, which is fair if we understand that some games have fewer others like them. Any two inputs from the same cluster will give the same output (except for not recommending itself). 
 
 ## Basic Recommendations
 ```{r}
 recommendation <- function(gamename = "Gloomhaven"){
   detect <- str_which(games_clean$names, paste0("^", gamename, "$"))
   cluster <- km_games$cluster[detect]
-  head(games_clean$names[which(km_games$cluster == cluster)])
+  recs <- games_clean$names[which(km_games$cluster == cluster)]
+  recs <- recs[-which(recs == gamename)]
+  return(recs)
 }
+
+#Example
+recommendation("Hanabi")
 ```
+
+The more sophisticated recommendation function runs independent kmeans clusters and gives each game a point for every time it appears in the same cluster as the input game. Then it returns a dataframe with the top results by score.
 
 ## Score from 1 to 5
 ```{r}
-recommendation2 <- function(gamename = "Gloomhaven", number = 5){
-Score <- as.data.frame(cbind(games_clean$names, "score" = 0))
-Score$score <- as.numeric(Score$score) - 1
-detect <- str_which(games_clean$names, paste0("^", gamename, "$"))[1]
-Score[detect, ] <- NA # stops it from recommending itself
+recommendation2 <- function(gamename = "Gloomhaven", runs = 5, number = 5){
+  # Create a new numeric variable called Score (which gives it a value of 1, so that is subtracted out)
+  Score <- as.data.frame(cbind(games_clean$names, "score" = 0))
+  Score$score <- as.numeric(Score$score) - 1
+  
+  
+  # Stop the game from recommending itself
+  detect <- str_which(games_clean$names, paste0("^", gamename, "$"))[1]
+Score[detect, ] <- NA 
+
 set.seed(12345)
-  for (i in 1:5){
+
+# Loop for kmeans clustering with 500 clusters. Because of the number of clusters, it can take some time to run.
+  for (i in 1:runs){
       km_games <- kmeans(games_numeric_2, centers = 500, nstart = 25)
       cluster <- km_games$cluster[detect]
       Score$score[which(km_games$cluster == cluster)] <- Score$score[which(km_games$cluster == cluster)] + 1
-    }
-  head(arrange(Score, desc(score)), number)
+  }
+#Create the recommendation table and return it
+  recs <- head(arrange(Score, desc(score)), number)
+  colnames(recs) <- c("Game", paste0("Score up to ",runs))
+  return(recs)
 }
+
+#Example
+recommendation2("Gloom", 10, 10)
 ```
 
-### Test of Recommendation
-```{r error=TRUE}
-recommendation2("Betrayal at House on the Hill")
-```
 
 # Supervised Learning
+
+Given the large number of mechanical and thematic variables, we were interested in trying to predict the games' "geek rating" score by modeling these various variables. To simplify the model we dropped non-numeric variables like urls, names, and designers which would arguably not have value in the scoring as well as obviously highly colinear variables like rank, which is purely an ordering of geek rating.
 
 ## Multiple Cores
 ```{r}
@@ -367,10 +377,16 @@ registerDoMC(parallel::detectCores())
 ```
 
 ## Subset
-Drop unimportant variables
+Here we dropped variables we believed would be confounding or unhelpful.
 ```{r}
 games_clean_sub <- games_clean %>%
   select(min_players:cat_total, -num_votes, -image_url, -mechanic, -category, -designer, -owned, -avg_rating, -mech_total, -cat_total)
+```
+
+
+## Linear Model
+We ran an OLS model on the subset.
+```{r}
 lm1 <- lm(geek_rating ~ ., data = games_clean_sub)
 summary(lm1)
 ```
@@ -387,8 +403,7 @@ games_clean_training <- games_clean_sub[ in_train, ]
 games_clean_testing  <- games_clean_sub[-in_train, ]
 ```
 
-## OLS
-
+## OLS Model in Machine Learning Context
 Step 1: Solve an optimization problem using the pre-processed training data
 ```{r}
 set.seed(12345)
@@ -450,8 +465,8 @@ defaultSummary(data.frame(obs = games_clean_testing$geek_rating, pred = yhat_fla
 
 
 ## Random Forest
-
-```{r cache=TRUE}
+ 
+```{r, cache=TRUE}
 # library(randomForest)
 # rf_grid <- data.frame(.mtry = 2:(ncol(games_clean_training) - 1L)) # across all data
 set.seed(12345)
@@ -488,7 +503,7 @@ defaultSummary(data.frame(obs = games_clean_testing$geek_rating,
 
 
 ## Neural Net
-```{r cache = true}
+```{r, cache = true}
 library(e1071)
 set.seed(12345)
 nnet_grid <- expand.grid(.decay = c(0, 0.01, 0.1),
@@ -508,3 +523,26 @@ defaultSummary(data.frame(obs = games_clean_testing$geek_rating,
 varImp(out_nn)
 ```
 
+## Prediction of geek rating without and with a data frame returned
+In the end, our Ordinary Least Squares Linear Regression had the lowest Root Mean Squared Error (RMSE), so it is what we are using to make predictions of the geek rating from the other variables. 
+
+We created a function that uses the linear model to predict the geek rating for any game input, then used that function to add a column of predicted geek ratings to the games_clean dataframe.
+### Get Game Prediction
+```{r}
+prediction <- function(gamename){
+  options(warn=-1)
+  game_vector <- games_clean_sub[games_clean$names == gamename,]
+  return(predict(fit_lm, newdata = game_vector)[[1]])
+}
+```
+
+### Looking at all predictions
+```{r, cache=TRUE, warning=FALSE}
+games_with_preds <- games_clean
+games_with_preds <- games_with_preds[,c(1, 4, 12, 157, 2, 3, 5:156)]
+
+games_with_preds$predicted_rating <- as.numeric(map(as.character(games_clean$names), prediction))
+
+
+games_with_preds$names[(games_with_preds$predicted_rating - games_with_preds$geek_rating > 0)]
+```
