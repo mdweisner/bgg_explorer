@@ -32,6 +32,12 @@ knitr::opts_chunk$set(echo = TRUE)
 + Modeling process?
 + Carefully design the scope of the project - debugging will take longer than expected
 
+
++ Graphs/Exploratory
++ Pick the best model predictor
++ Predict with that model
++ Write about each section
+
 ## Libraries
 ```{r}
 library(tidyverse)
@@ -251,7 +257,7 @@ filter(games_clean, grepl("tiny epic", ignore.case = TRUE, names))
 filter(games_clean, grepl("catan", ignore.case = TRUE, names))
 game_expansions <- games_clean %>%
   filter(cat_expansion_for_base_game == 1)
-game_expansions
+# game_expansions
 ```
 
 ### Times
@@ -391,6 +397,7 @@ fit_lm
 ```
 
 Step 2: Predict in the testing data
+The predict lm throws out data it thinks is useless.
 ```{r}
 set.seed(12345)
 y_hat_lm <- predict(fit_lm, newdata = games_clean_testing)
@@ -416,7 +423,7 @@ lassoGrid <- expand.grid(.lambda = seq(.05, 1, length = 10),
 ```{r cache=TRUE}
 set.seed(12345)
 lasso <- train(geek_rating ~ ., data = games_clean_training, method = "enet", 
-               trControl = ctrl, tuneGrid = lassoGrid)
+               trControl = ctrl, tuneGrid = lassoGrid, linout = TRUE)
 ```
 
 Prediction
@@ -452,9 +459,13 @@ ctrl <- trainControl(method = "cv", number = 3)
 rf_grid <- data.frame(.mtry = 2:(ncol(games_clean_training) - 1L)) # I had to reduce this to get it to run, default is 2/3, maybe change knot size? 
 rf_out <- train(geek_rating ~ ., data = games_clean_training, method = "rf",
              trControl = ctrl, tuneGrid = rf_grid, 
-             ntrees = 25, importance = TRUE) # I tried cutting fewer trees
+             ntrees = 10, importance = TRUE) # I tried cutting fewer trees
+```
+Variables of Importance
+```{r}
 varImp(rf_out)
 ```
+
 Compare
 ```{r, cache=TRUE}
 y_hat_rf <- predict(rf_out, newdata = games_clean_testing)
@@ -469,11 +480,12 @@ library(BART)
 set.seed(12345)
 X_train <- model.matrix(geek_rating ~ ., data = games_clean_training)
 X_test <- model.matrix(geek_rating ~ ., data = games_clean_testing)
-out <- mc.wbart(X_train, y = games_clean_training$geek_rating, X_test,
+out_bart <- mc.wbart(X_train, y = games_clean_training$geek_rating, X_test,
                 mc.cores = parallel::detectCores())
 defaultSummary(data.frame(obs = games_clean_testing$geek_rating,
-                          pred = exp(out$yhat.test.mean)))
+                          pred = exp(out_bart$yhat.test.mean)))
 ```
+
 
 ## Neural Net
 ```{r cache = true}
@@ -486,10 +498,13 @@ ctrl <- trainControl(method = "cv", number = 10)
 
 out_nn <- train(geek_rating ~ ., data = games_clean_training, method = "nnet",
              trControl = ctrl, tuneGrid = nnet_grid,
-             trace = FALSE)
+             trace = FALSE, linout = TRUE,
+            mc.cores = parallel::detectCores())
 defaultSummary(data.frame(obs = games_clean_testing$geek_rating,
                           pred = predict(out_nn, newdata = games_clean_testing)))
 
 ```
-
+```{r}
+varImp(out_nn)
+```
 
